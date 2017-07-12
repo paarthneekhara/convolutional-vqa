@@ -11,12 +11,7 @@ def main():
                        help='fc7_feature_length')
     parser.add_argument('--residual_channels', type=int, default=512,
                        help='residual_channels')
-    parser.add_argument('--embedding_size', type=int, default=512,
-                       help='embedding_size'),
-    parser.add_argument('--word_emb_dropout', type=float, default=0.5,
-                       help='word_emb_dropout')
-    parser.add_argument('--image_dropout', type=float, default=0.5,
-                       help='image_dropout')
+    
     parser.add_argument('--data_dir', type=str, default='Data',
                        help='Data directory')
     parser.add_argument('--batch_size', type=int, default=200,
