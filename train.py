@@ -14,7 +14,7 @@ def main():
     
     parser.add_argument('--data_dir', type=str, default='Data',
                        help='Data directory')
-    parser.add_argument('--batch_size', type=int, default=200,
+    parser.add_argument('--batch_size', type=int, default=64,
                        help='Batch Size')
     parser.add_argument('--learning_rate', type=float, default=0.001,
                        help='Batch Size')
@@ -47,6 +47,7 @@ def main():
         'n_source_quant' : len(qa_data['question_vocab']),
         'ans_vocab_size' : len(qa_data['answer_vocab']),
         'encoder_filter_width' : 3,
+        'batch_size' : args.batch_size,
         'encoder_dilations' : [1, 2, 4, 8, 16,
                           1, 2, 4, 8, 16]
     }
