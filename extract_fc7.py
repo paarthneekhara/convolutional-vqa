@@ -40,7 +40,7 @@ def main():
     for opn in graph.get_operations():
         print "Name", opn.name, opn.values()
 
-    all_data = data_loader.load_questions_answers(args)
+    all_data = data_loader.load_questions_answers(version = 2, data_dir=args.data_dir)
     if args.split == "train":
         qa_data = all_data['training']
     else:
@@ -52,7 +52,6 @@ def main():
 
     image_id_list = [img_id for img_id in image_ids]
     print "Total Images", len(image_id_list)
-    
     
     sess = tf.Session()
     fc7 = np.ndarray( (len(image_id_list), 4096 ) )

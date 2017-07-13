@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import ops
-import tensorflow.contrib.layers as tf_ops
+from tensorflow.contrib.layers import layer_norm
 
 class TextModel:
     def __init__(self, options):
@@ -36,26 +36,26 @@ class TextModel:
 
     def encode_layer(self, input_, dilation, layer_no, last_layer = False, train = True):
         options = self.options
-        input_ln = tf_ops.layer_norm(input_, trainable = train)
+        input_ln = layer_norm(input_, trainable = train)
         relu1 = tf.nn.relu(input_ln, name = 'enc_relu1_layer{}'.format(layer_no))
         conv1 = ops.conv1d(relu1, options['residual_channels'], name = 'enc_conv1d_1_layer{}'.format(layer_no))
-        conv1 = tf_ops.layer_norm(conv1, trainable = train)
+        conv1 = layer_norm(conv1, trainable = train)
         relu2 = tf.nn.relu(conv1, name = 'enc_relu2_layer{}'.format(layer_no))
         dilated_conv = ops.dilated_conv1d(relu2, options['residual_channels'], 
             dilation, options['encoder_filter_width'],
             causal = False, 
             name = "enc_dilated_conv_layer{}".format(layer_no)
             )
-        dilated_conv = tf_ops.layer_norm(trainable = train)
+        dilated_conv = layer_norm(dilated_conv, trainable = train)
         relu3 = tf.nn.relu(dilated_conv, name = 'enc_relu3_layer{}'.format(layer_no))
         conv2 = ops.conv1d(relu3, 2 * options['residual_channels'], name = 'enc_conv1d_2_layer{}'.format(layer_no))
         return input_ + conv2
 
-    def encoder(self, input_):
+    def encoder(self, input_, train = True):
         options = self.options
         curr_input = input_
         for layer_no, dilation in enumerate(self.options['encoder_dilations']):
-            layer_output = self.encode_layer(curr_input, dilation, layer_no)
+            layer_output = self.encode_layer(curr_input, dilation, layer_no, train)
             # ENCODE ONLY TILL THE INPUT LENGTH, conditioning should be 0 beyond that
             # layer_output = tf.mul(layer_output, self.souce_embedding, name = 'layer_{}_output'.format(layer_no))
             curr_input = layer_output

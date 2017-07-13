@@ -28,8 +28,9 @@ def main():
                        help='Trained Model Path')
 
     args = parser.parse_args()
-    print "Reading QA DATA"
-    qa_data = data_loader.load_questions_answers(version, args.data_dir)
+    
+    print "Reading QA DATA", args.version
+    qa_data = data_loader.load_questions_answers(args.version, args.data_dir)
     
     print "Reading fc7 features"
     fc7_features, image_id_list = data_loader.load_fc7_features(args.data_dir, 'train')
@@ -84,9 +85,11 @@ def main():
                 }
             )
             batch_no += 1
-            if args.Debug:
-                for idx, p in enumerate(pred):
-                    print ans_map[p], ans_map[ np.argmax(answer[idx])]
+            if args.debug:
+                if batch_no % 100 == 0:
+                    print "BNNNN", batch_no
+                    for idx, p in enumerate(pred):
+                        print ans_map[p], ans_map[ np.argmax(answer[idx])]
 
                 print "Loss", loss_value, batch_no, i
                 print "Accuracy", accuracy
@@ -95,7 +98,7 @@ def main():
                 print "Loss", loss_value, batch_no, i
                 print "Training Accuracy", accuracy
             
-        save_path = saver.save(sess, "Data/Models/model{}.ckpt".format(i))
+        save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, i))
         
 
 def get_training_batch(batch_no, batch_size, fc7_features, image_id_map, qa_data, split):

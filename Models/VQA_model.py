@@ -42,7 +42,7 @@ class VQA_model:
         image_embedding = tf.nn.tanh(image_embedding)
         
         # combined_embedding = sentence_embedding + image_embedding
-        combined_embedding = tf.matmul(sentence_embedding, image_embedding)
+        combined_embedding = tf.multiply(sentence_embedding, image_embedding)
 
         logits = tf.matmul(combined_embedding, self.w_ans) + self.b_ans
 
@@ -82,7 +82,7 @@ class VQA_model:
 
         
         # combined_embedding = sentence_embedding + image_embedding
-        combined_embedding = tf.matmul(sentence_embedding, image_embedding)
+        combined_embedding = tf.multiply(sentence_embedding, image_embedding)
         
         logits = tf.matmul(combined_embedding, self.w_ans) + self.b_ans
         answer_probab = tf.nn.softmax(logits, name='answer_probab')
