@@ -22,7 +22,7 @@ def main():
                        help='Expochs')
     parser.add_argument('--debug', type=bool, default=False,
                        help='Debug')
-    parser.add_argument('--resume_model', type=str, default=None,
+    parser.add_argument('--model_path', type=str, default=None,
                        help='Trained Model Path')
 
     args = parser.parse_args()
@@ -30,7 +30,7 @@ def main():
     qa_data = data_loader.load_questions_answers(args)
     
     print "Reading fc7 features"
-    fc7_features, image_id_list = data_loader.load_fc7_features(args.data_dir, 'train')
+    fc7_features, image_id_list = data_loader.load_fc7_features(args.data_dir, 'val')
     print "FC7 features", fc7_features.shape
     print "image_id_list", image_id_list.shape
 
@@ -55,44 +55,43 @@ def main():
     
     
     model = VQA_model.VQA_model(model_options)
-    input_tensors, t_loss, t_accuracy, t_p = model.build_model()
-    train_op = tf.train.AdamOptimizer(args.learning_rate).minimize(t_loss)
+    input_tensors, t_prediction, t_ans_probab = model.build_generator()
     sess = tf.InteractiveSession()
-    tf.initialize_all_variables().run()
-
-    
+    # tf.initialize_all_variables().run()
+    # saver = tf.train.import_meta_graph('Data/Models/model20.ckpt.meta')
     saver = tf.train.Saver()
-    if args.resume_model:
-        saver.restore(sess, args.resume_model)
+    saver.restore(sess,'Data/Models/model18.ckpt.data-00000-of-00001')
 
-    for i in xrange(args.epochs):
-        batch_no = 0
-
-        while ((batch_no + 1)*args.batch_size) < len(qa_data['training']):
-            sentence, answer, fc7 = get_training_batch(batch_no, args.batch_size, fc7_features, image_id_map, qa_data, 'train')
-            _, loss_value, accuracy, pred = sess.run([train_op, t_loss, t_accuracy, t_p], 
-                feed_dict={
-                    input_tensors['fc7']:fc7,
-                    input_tensors['source_sentence']:sentence,
-                    input_tensors['answer']:answer
-                }
-            )
-            batch_no += 1
-            if args.debug:
-                for idx, p in enumerate(pred):
-                    print ans_map[p], ans_map[ np.argmax(answer[idx])]
-
-                print "Loss", loss_value, batch_no, i
-                print "Accuracy", accuracy
-                print "---------------"
-            else:
-                print "Loss", loss_value, batch_no, i
-                print "Training Accuracy", accuracy
-            
-        save_path = saver.save(sess, "Data/Models/model{}.ckpt".format(i))
+    avg_accuracy = 0.0
+    total = 0
+    # saver.restore(sess, args.model_path)
+    
+    batch_no = 0
+    while ((batch_no+1)*args.batch_size) < len(qa_data['validation']):
+        sentence, answer, fc7 = get_batch(batch_no, args.batch_size, 
+            fc7_features, image_id_map, qa_data, 'val')
         
+        pred, ans_prob = sess.run([t_prediction, t_ans_probab], feed_dict={
+            input_tensors['fc7']:fc7,
+            input_tensors['source_sentence']:sentence,
+        })
+        
+        batch_no += 1
+        if args.debug:
+            for idx, p in enumerate(pred):
+                print ans_map[p], ans_map[ np.argmax(answer[idx])]
 
-def get_training_batch(batch_no, batch_size, fc7_features, image_id_map, qa_data, split):
+        correct_predictions = np.equal(pred, np.argmax(answer, 1))
+        correct_predictions = correct_predictions.astype('float32')
+        accuracy = correct_predictions.mean()
+        print "Acc", accuracy
+        avg_accuracy += accuracy
+        total += 1
+    
+    print "Acc", avg_accuracy/total
+
+
+def get_batch(batch_no, batch_size, fc7_features, image_id_map, qa_data, split):
     qa = None
     if split == 'train':
         qa = qa_data['training']
@@ -107,6 +106,7 @@ def get_training_batch(batch_no, batch_size, fc7_features, image_id_map, qa_data
     fc7 = np.ndarray( (n,4096) )
 
     count = 0
+
     for i in range(si, ei):
         sentence[count,:] = qa[i]['question'][:]
         answer[count, qa[i]['answer']] = 1.0
