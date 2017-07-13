@@ -27,7 +27,7 @@ class VQA_model:
         answer = tf.placeholder('float32', [None, self.options['ans_vocab_size']], name = "answer")
         
         tm = text_model.TextModel(options)
-        text_tensors = tm.build_model()
+        text_tensors = tm.build_model(train = True)
         source_sentence = text_tensors['source_sentence']
 
         encoded_sentence = text_tensors['encoded_sentence']
@@ -40,10 +40,10 @@ class VQA_model:
 
         image_embedding = tf.matmul(fc7_features, self.w_image_embedding) + self.b_image_embedding
         image_embedding = tf.nn.tanh(image_embedding)
+        
+        # combined_embedding = sentence_embedding + image_embedding
+        combined_embedding = tf.matmul(sentence_embedding, image_embedding)
 
-        
-        combined_embedding = sentence_embedding + image_embedding
-        
         logits = tf.matmul(combined_embedding, self.w_ans) + self.b_ans
 
         ce = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=answer, name = 'ce')
@@ -66,7 +66,7 @@ class VQA_model:
         options = self.options
         fc7_features = tf.placeholder('float32',[ None, self.options['fc7_feature_length'] ], name = 'fc7')
         tm = text_model.TextModel(options)
-        text_tensors = tm.build_model()
+        text_tensors = tm.build_model(train = False)
         source_sentence = text_tensors['source_sentence']
 
         encoded_sentence = text_tensors['encoded_sentence']
@@ -81,7 +81,8 @@ class VQA_model:
         image_embedding = tf.nn.tanh(image_embedding)
 
         
-        combined_embedding = sentence_embedding + image_embedding
+        # combined_embedding = sentence_embedding + image_embedding
+        combined_embedding = tf.matmul(sentence_embedding, image_embedding)
         
         logits = tf.matmul(combined_embedding, self.w_ans) + self.b_ans
         answer_probab = tf.nn.softmax(logits, name='answer_probab')
@@ -91,7 +92,7 @@ class VQA_model:
             'fc7' : fc7_features,
             'source_sentence' : source_sentence,
         }
-        
+
         return input_tensors, predictions, answer_probab
         
 

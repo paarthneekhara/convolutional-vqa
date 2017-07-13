@@ -20,6 +20,8 @@ def main():
                        help='Batch Size')
     parser.add_argument('--epochs', type=int, default=200,
                        help='Expochs')
+    parser.add_argument('--version', type=int, default=2,
+                       help='VQA data version')
     parser.add_argument('--debug', type=bool, default=False,
                        help='Debug')
     parser.add_argument('--resume_model', type=str, default=None,
@@ -27,7 +29,7 @@ def main():
 
     args = parser.parse_args()
     print "Reading QA DATA"
-    qa_data = data_loader.load_questions_answers(args)
+    qa_data = data_loader.load_questions_answers(version, args.data_dir)
     
     print "Reading fc7 features"
     fc7_features, image_id_list = data_loader.load_fc7_features(args.data_dir, 'train')
@@ -46,10 +48,14 @@ def main():
         'text_length' : qa_data['max_question_length'],
         'n_source_quant' : len(qa_data['question_vocab']),
         'ans_vocab_size' : len(qa_data['answer_vocab']),
-        'encoder_filter_width' : 3,
+        'encoder_filter_width' : 5,
         'batch_size' : args.batch_size,
         'encoder_dilations' : [1, 2, 4, 8, 16,
-                          1, 2, 4, 8, 16]
+                          1, 2, 4, 8, 16,
+                          1, 2, 4, 8, 16,
+                          1, 2, 4, 8, 16,
+                          1, 2, 4, 8, 16
+        ]
     }
     
     
@@ -78,7 +84,7 @@ def main():
                 }
             )
             batch_no += 1
-            if args.debug:
+            if args.Debug:
                 for idx, p in enumerate(pred):
                     print ans_map[p], ans_map[ np.argmax(answer[idx])]
 

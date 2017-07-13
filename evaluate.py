@@ -20,6 +20,8 @@ def main():
                        help='Batch Size')
     parser.add_argument('--epochs', type=int, default=200,
                        help='Expochs')
+    parser.add_argument('--version', type=int, default=2,
+                       help='VQA data version')
     parser.add_argument('--debug', type=bool, default=False,
                        help='Debug')
     parser.add_argument('--model_path', type=str, default=None,
@@ -60,7 +62,7 @@ def main():
     # tf.initialize_all_variables().run()
     # saver = tf.train.import_meta_graph('Data/Models/model20.ckpt.meta')
     saver = tf.train.Saver()
-    saver.restore(sess,'Data/Models/model18.ckpt.data-00000-of-00001')
+    saver.restore(sess,'Data/Models/model18.ckpt')
 
     avg_accuracy = 0.0
     total = 0

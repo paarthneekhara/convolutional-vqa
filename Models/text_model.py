@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import ops
+import tensorflow.contrib.layers as tf_ops
 
 class TextModel:
     def __init__(self, options):
@@ -20,12 +21,12 @@ class TextModel:
             [options['n_source_quant'], 2*options['residual_channels']],
             initializer=tf.truncated_normal_initializer(stddev=0.02))
 
-    def build_model(self):
+    def build_model(self, train = True):
         options = self.options
         source_sentence = tf.placeholder('int32', [options['batch_size'], options['text_length']], name = 'sentence')
         souce_embedding = tf.nn.embedding_lookup(self.w_source_embedding, source_sentence)
 
-        encoded_sentence = self.encoder(souce_embedding)
+        encoded_sentence = self.encoder(souce_embedding, train = train)
 
         return {
             'source_sentence' : source_sentence,
@@ -33,18 +34,19 @@ class TextModel:
         }
 
 
-    def encode_layer(self, input_, dilation, layer_no, last_layer = False):
+    def encode_layer(self, input_, dilation, layer_no, last_layer = False, train = True):
         options = self.options
-        relu1 = tf.nn.relu(input_, name = 'enc_relu1_layer{}'.format(layer_no))
+        input_ln = tf_ops.layer_norm(input_, trainable = train)
+        relu1 = tf.nn.relu(input_ln, name = 'enc_relu1_layer{}'.format(layer_no))
         conv1 = ops.conv1d(relu1, options['residual_channels'], name = 'enc_conv1d_1_layer{}'.format(layer_no))
-        
+        conv1 = tf_ops.layer_norm(conv1, trainable = train)
         relu2 = tf.nn.relu(conv1, name = 'enc_relu2_layer{}'.format(layer_no))
         dilated_conv = ops.dilated_conv1d(relu2, options['residual_channels'], 
             dilation, options['encoder_filter_width'],
             causal = False, 
             name = "enc_dilated_conv_layer{}".format(layer_no)
             )
-        
+        dilated_conv = tf_ops.layer_norm(trainable = train)
         relu3 = tf.nn.relu(dilated_conv, name = 'enc_relu3_layer{}'.format(layer_no))
         conv2 = ops.conv1d(relu3, 2 * options['residual_channels'], name = 'enc_conv1d_2_layer{}'.format(layer_no))
         return input_ + conv2
@@ -58,10 +60,10 @@ class TextModel:
             # layer_output = tf.mul(layer_output, self.souce_embedding, name = 'layer_{}_output'.format(layer_no))
             curr_input = layer_output
         
-        # TO BE CONCATENATED WITH TARGET EMBEDDING
         processed_output = tf.nn.relu( ops.conv1d(tf.nn.relu(layer_output), 
             options['residual_channels'], 
             name = 'encoder_post_processing') )
+        
         return processed_output
 
 
