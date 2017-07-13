@@ -5,25 +5,25 @@ import re
 import numpy as np
 import pprint
 import pickle
+import argparse
 
-def load_questions_answers(opts):
-    
-    questions = None
-    answers = None
-    
-    t_q_json_file = join(opts.data_dir, 'MultipleChoice_mscoco_train2014_questions.json')
-    t_a_json_file = join(opts.data_dir, 'mscoco_train2014_annotations.json')
+def prepare_training_data(version = 2, data_dir = 'Data'):
+    if version == 1:
+        t_q_json_file = join(data_dir, 'MultipleChoice_mscoco_train2014_questions.json')
+        t_a_json_file = join(data_dir, 'mscoco_train2014_annotations.json')
 
-    v_q_json_file = join(opts.data_dir, 'MultipleChoice_mscoco_val2014_questions.json')
-    v_a_json_file = join(opts.data_dir, 'mscoco_val2014_annotations.json')
-    qa_data_file = join(opts.data_dir, 'qa_data_file.pkl')
-    vocab_file = join(opts.data_dir, 'vocab_file.pkl')
+        v_q_json_file = join(data_dir, 'MultipleChoice_mscoco_val2014_questions.json')
+        v_a_json_file = join(data_dir, 'mscoco_val2014_annotations.json')
+        qa_data_file = join(data_dir, 'qa_data_file1.pkl')
+        vocab_file = join(data_dir, 'vocab_file1.pkl')
+    else:
+        t_q_json_file = join(data_dir, 'v2_OpenEnded_mscoco_train2014_questions.json')
+        t_a_json_file = join(data_dir, 'v2_mscoco_train2014_annotations.json')
 
-    # IF ALREADY EXTRACTED
-    if isfile(qa_data_file):
-        with open(qa_data_file) as f:
-            data = pickle.load(f)
-            return data
+        v_q_json_file = join(data_dir, 'v2_OpenEnded_mscoco_val2014_questions.json')
+        v_a_json_file = join(data_dir, 'v2_mscoco_val2014_annotations.json')
+        qa_data_file = join(data_dir, 'qa_data_file2.pkl')
+        vocab_file = join(data_dir, 'vocab_file2.pkl')
 
     print "Loading Training questions"
     with open(t_q_json_file) as f:
@@ -47,9 +47,10 @@ def load_questions_answers(opts):
 
     answers = t_answers['annotations'] + v_answers['annotations']
     questions = t_questions['questions'] + v_questions['questions']
-    
+
     answer_vocab = make_answer_vocab(answers)
     question_vocab, max_question_length = make_questions_vocab(questions, answers, answer_vocab)
+
     print "Max Question Length", max_question_length
     word_regex = re.compile(r'\w+')
     training_data = []
@@ -105,10 +106,19 @@ def load_questions_answers(opts):
         }
         pickle.dump(vocab_data, f)
 
-    return data
+    print "SAVED QUESTION ANSWER DATA"
 
-def get_question_answer_vocab(data_dir):
-    vocab_file = join(data_dir, 'vocab_file.pkl')
+
+def load_questions_answers(version = 2, data_dir = 'Data'):
+    qa_data_file = join(data_dir, 'qa_data_file{}.pkl'.format(version))
+    
+    if isfile(qa_data_file):
+        with open(qa_data_file) as f:
+            data = pickle.load(f)
+            return data
+
+def get_question_answer_vocab(version = 2, data_dir = 'Data'):
+    vocab_file = join(data_dir, 'vocab_file{}.pkl'.format(version))
     vocab_data = pickle.load(open(vocab_file))
     return vocab_data
 
@@ -185,3 +195,17 @@ def load_fc7_features(data_dir, split):
     with h5py.File( join( data_dir, (split + '_image_id_list.h5')),'r') as hf:
         image_id_list = np.array(hf.get('image_id_list'))
     return fc7_features, image_id_list
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--version', type=int, default=1,
+                       help='VQA dataset version')
+    parser.add_argument('--data_dir', type=str, default="Data",
+                       help='VQA dataset version')
+    args = parser.parse_args()
+
+    prepare_training_data( args.version, args.data_dir)
+
+if __name__ == '__main__':
+    main()

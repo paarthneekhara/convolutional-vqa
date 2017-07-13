@@ -1,4 +1,9 @@
+*.pyc
 parasML.pem
 ML.pem
 cudnn-7.0-linux-x64-v4.0-prod.tgz
 toa_part_1of2.sh
+awstranfer.sh
+!Data/
+Data/*
+!Data/download_data.sh
