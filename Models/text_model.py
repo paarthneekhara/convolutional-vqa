@@ -13,20 +13,33 @@ class TextModel:
         text_length : Number of words in sentece
         encoder_filter_width : Encoder Filter Width
         encoder_dilations : Dilation Factor for decoder layers (list)
-        
+        words_vectors_provided : If True the word Embeddings are provided,
+        length_of_word_vector : Lrngth of the Word Vectors Provided/residual_channels
         '''
         self.options = options
-
-        self.w_source_embedding = tf.get_variable('w_source_embedding', 
+        if options['words_vectors_provided']:
+            self.w_source_embedding = tf.get_variable('w_source_embedding', 
+            [options['length_of_word_vector'], 2*options['residual_channels']],
+            initializer=tf.truncated_normal_initializer(stddev=0.02))
+        else:
+            self.w_source_embedding = tf.get_variable('w_source_embedding', 
             [options['n_source_quant'], 2*options['residual_channels']],
             initializer=tf.truncated_normal_initializer(stddev=0.02))
 
+
     def build_model(self, train = True):
         options = self.options
-        source_sentence = tf.placeholder('int32', [options['batch_size'], options['text_length']], name = 'sentence')
-        souce_embedding = tf.nn.embedding_lookup(self.w_source_embedding, source_sentence)
-
-        encoded_sentence = self.encoder(souce_embedding, train = train)
+        if options['words_vectors_provided']:
+            source_sentence = tf.placeholder('float32', [options['batch_size'],options['text_length'], options['length_of_word_vector']], name = 'sentence')
+            embed = tf.reshape(source_sentence,[-1,300])
+            source_embedding  = tf.matmul(embed,self.w_source_embedding)
+            source_embedding = tf.reshape(source_embedding,[options['batch_size'],options['text_length'],-1])
+            print source_embedding
+        else:
+            source_sentence = tf.placeholder('int32', [options['batch_size'], options['text_length']], name = 'sentence')
+            source_embedding = tf.nn.embedding_lookup(self.w_source_embedding, source_sentence)
+            print source_embedding
+        encoded_sentence = self.encoder(source_embedding, train = train)
 
         return {
             'source_sentence' : source_sentence,
@@ -74,9 +87,13 @@ def main():
         'batch_size' : 64,
         'text_length' : 25,
         'encoder_filter_width' : 3,
+        'words_vectors_provided' : True,
+        'length_of_word_vector' : 300,
         'encoder_dilations' : [1, 2, 4, 8, 16,
                           1, 2, 4, 8, 16]
+
     }
+
 
     tm = TextModel(options)
     tm.build_model()

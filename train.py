@@ -10,8 +10,7 @@ def main():
     parser.add_argument('--fc7_feature_length', type=int, default=4096,
                        help='fc7_feature_length')
     parser.add_argument('--residual_channels', type=int, default=512,
-                       help='residual_channels')
-    
+                       help='residual_channels')  
     parser.add_argument('--data_dir', type=str, default='Data',
                        help='Data directory')
     parser.add_argument('--batch_size', type=int, default=64,
@@ -43,21 +42,42 @@ def main():
 
     ans_map = { qa_data['answer_vocab'][ans] : ans for ans in qa_data['answer_vocab']}
 
-    model_options = {
-        'residual_channels' : args.residual_channels,
-        'fc7_feature_length' : args.fc7_feature_length,
-        'text_length' : qa_data['max_question_length'],
-        'n_source_quant' : len(qa_data['question_vocab']),
-        'ans_vocab_size' : len(qa_data['answer_vocab']),
-        'encoder_filter_width' : 5,
-        'batch_size' : args.batch_size,
-        'encoder_dilations' : [1, 2, 4, 8, 16,
-                          1, 2, 4, 8, 16,
-                          1, 2, 4, 8, 16,
-                          1, 2, 4, 8, 16,
-                          1, 2, 4, 8, 16
-        ]
-    }
+    if qa_data['word_vector']:
+        model_options = {
+            'residual_channels' : args.residual_channels,
+            'fc7_feature_length' : args.fc7_feature_length,
+            'text_length' : qa_data['max_question_length'],
+            'n_source_quant' : len(qa_data['question_vocab']),
+            'ans_vocab_size' : len(qa_data['answer_vocab']),
+            'encoder_filter_width' : 5,
+            'batch_size' : args.batch_size,
+            'word_vector' : qa_data['word_vector'],
+            'words_vectors_provided' : True,
+            'length_of_word_vector' : 300,
+            'encoder_dilations' : [1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16
+            ]
+        }
+    else:
+        model_options = {
+            'residual_channels' : args.residual_channels,
+            'fc7_feature_length' : args.fc7_feature_length,
+            'text_length' : qa_data['max_question_length'],
+            'n_source_quant' : len(qa_data['question_vocab']),
+            'ans_vocab_size' : len(qa_data['answer_vocab']),
+            'encoder_filter_width' : 5,
+            'batch_size' : args.batch_size,
+            'words_vectors_provided' : False,
+            'encoder_dilations' : [1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16,
+                              1, 2, 4, 8, 16
+            ]
+        }
     
     
     
@@ -117,7 +137,10 @@ def get_training_batch(batch_no, batch_size, fc7_features, image_id_map, qa_data
 
     count = 0
     for i in range(si, ei):
-        sentence[count,:] = qa[i]['question'][:]
+        if qa_data['word_vector']:
+            sentence[count,:] = qa[i]['question_word_vector'][:]
+        else:
+            sentence[count,:] = qa[i]['question'][:]
         answer[count, qa[i]['answer']] = 1.0
         fc7_index = image_id_map[ qa[i]['image_id'] ]
         fc7[count,:] = fc7_features[fc7_index][:]

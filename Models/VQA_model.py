@@ -110,6 +110,8 @@ def main():
         'encoder_dilations' : [1, 2, 4, 8, 16,
                           1, 2, 4, 8, 16],
         'fc7_feature_length' : 4096,
+        'words_vectors_provided' : True,
+        'length_of_word_vector' : 300,
         'ans_vocab_size' : 1000
 
     }
