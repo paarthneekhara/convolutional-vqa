@@ -216,8 +216,8 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
     default_word_vector = []
     words_notfound = 0
     
-    for x in range(0,299):
-        default_word_vector.append(0.00000)
+    for x in range(0,300):
+        default_word_vector.append(0.0)
                     
     for word in qw_vocab:
         if word not in glove_vectors:

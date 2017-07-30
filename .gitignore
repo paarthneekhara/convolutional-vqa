@@ -4,6 +4,11 @@ ML.pem
 cudnn-7.0-linux-x64-v4.0-prod.tgz
 toa_part_1of2.sh
 awstranfer.sh
+awstransfer.sh
+tasks.sh
+tasks2.sh
+transfer2.sh
 !Data/
 Data/*
 !Data/download_data.sh
+.DS_Store
