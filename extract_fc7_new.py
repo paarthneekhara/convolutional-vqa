@@ -15,11 +15,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', type=str, default='train',
                        help='train/val')
-    parser.add_argument('--model_path', type=str, default='Data/vgg16.tfmodel',
-                       help='Pretrained VGG16 Model')
     parser.add_argument('--data_dir', type=str, default='Data',
                        help='Data directory')
-    parser.add_argument('--batch_size', type=int, default=10,
+    parser.add_argument('--batch_size', type=int, default=64,
                        help='Batch Size')
     parser.add_argument('--version', type=int, default=2,
                        help='Batch Size')
@@ -54,7 +52,9 @@ def main():
     images = cnn_model['images_placeholder']
     image_feature_layer = cnn_model['image_feature_layer']
 
-    fc7 = np.ndarray( (len(image_id_list), 4096 ) )
+    print "initialising features array"
+    conv_features = np.ndarray( (len(image_id_list), 14, 14, 512 ) , dtype = 'float32')
+    print "initialised feature array"
 
     idx = 0
     while idx < len(image_id_list):
@@ -72,8 +72,8 @@ def main():
         
         
         feed_dict  = { images : image_batch[0:count,:,:,:] }
-        fc7_batch = sess.run(image_feature_layer, feed_dict = feed_dict)
-        fc7[(idx - count):idx, :] = fc7_batch[0:count,:]
+        conv_features_batch = sess.run(image_feature_layer, feed_dict = feed_dict)
+        conv_features[(idx - count):idx, :,:,:] = conv_features_batch[0:count,:,:,:]
 
         end = time.clock()
         print "Time for batch 10 photos", end - start
@@ -82,15 +82,15 @@ def main():
 
         
 
-    print "Saving fc7 features"
-    file_name = "fc7_features_{}_{}_{}.h5".format(args.model_type, args.version, args.split)
-    h5f_fc7 = h5py.File( join(args.data_dir, file_name + '_fc7.h5'), 'w')
-    h5f_fc7.create_dataset('fc7_features', data=fc7)
-    h5f_fc7.close()
+    print "Saving conv_features features"
+    file_name = "conv_features_features_{}_{}_{}.h5".format(args.model_type, args.version, args.split)
+    h5f_conv_features = h5py.File( join(args.data_dir, file_name), 'w')
+    h5f_conv_features.create_dataset('conv_features_features', data=conv_features)
+    h5f_conv_features.close()
 
     print "Saving image id list"
     file_name = "image_id_list_{}_{}_{}.h5".format(args.model_type, args.version, args.split)
-    h5f_image_id_list = h5py.File( join(args.data_dir, args.split + '_image_id_list.h5'), 'w')
+    h5f_image_id_list = h5py.File( join(args.data_dir, file_name), 'w')
     h5f_image_id_list.create_dataset('image_id_list', data=image_id_list)
     h5f_image_id_list.close()
     print "Done!"

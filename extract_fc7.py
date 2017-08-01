@@ -54,7 +54,9 @@ def main():
     print "Total Images", len(image_id_list)
     
     sess = tf.Session()
-    fc7 = np.ndarray( (len(image_id_list), 4096 ) )
+    print "initialising features array"
+    fc7 = np.ndarray( (len(image_id_list), 14, 14, 512 ) )
+    print "initialised feature array"
     idx = 0
 
     while idx < len(image_id_list):
@@ -74,11 +76,10 @@ def main():
         feed_dict  = { images : image_batch[0:count,:,:,:] }
         fc7_tensor = graph.get_tensor_by_name("import/Relu_1:0")
         fc7_batch = sess.run(fc7_tensor, feed_dict = feed_dict)
-        fc7[(idx - count):idx, :] = fc7_batch[0:count,:]
+        fc7[(idx - count):idx, :,:,:] = fc7_batch[0:count,:,:,:]
         end = time.clock()
         print "Time for batch 10 photos", end - start
         print "Hours For Whole Dataset" , (len(image_id_list) * 1.0)*(end - start)/60.0/60.0/10.0
-
         print "Images Processed", idx
 
         

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import text_model
+import vgg16
 
 class VQA_model:
     def __init__(self, options):
@@ -20,7 +21,40 @@ class VQA_model:
         self.b_ans = tf.Variable(tf.zeros([options['ans_vocab_size']]), name='b_ans')
 
 
-    def build_model(self):
+    def build_model_attention(self):
+
+        options = self.options
+        image = tf.placeholder('float32',[ None, options['img_dim'], options['img_dim'], 3], name = 'image')
+        vgg = vgg16.vgg16(image)
+        vgg_weights = tf.trainable_variables()
+        for weight in vgg_weights:
+            print weight.name, weight.get_shape()
+
+        answer = tf.placeholder('float32', [None, self.options['ans_vocab_size']], name = "answer")
+
+        tm = text_model.TextModel(options)
+        text_tensors = tm.build_model(train = True)
+        source_sentence = text_tensors['source_sentence']
+        encoded_sentence = text_tensors['encoded_sentence']
+        sentence_embedding = tf.slice(encoded_sentence, [0, options['text_length'] - 1, 0], 
+            [-1, -1, -1])
+
+        all_weights = tf.trainable_variables()
+        print "********************************************************************************"
+        for weight in all_weights:
+            print weight.name, weight.get_shape()
+
+        print "********************************************************************************"
+        for weight in all_weights:
+            if weight not in vgg_weights:
+                print weight.name, weight.get_shape()
+
+
+
+
+
+
+    def build_model_bytenet_vgg(self):
         options = self.options
         
         fc7_features = tf.placeholder('float32',[ None, self.options['fc7_feature_length'] ], name = 'fc7')
@@ -112,12 +146,12 @@ def main():
         'fc7_feature_length' : 4096,
         'words_vectors_provided' : True,
         'length_of_word_vector' : 300,
-        'ans_vocab_size' : 1000
-
+        'ans_vocab_size' : 1000,
+        'img_dim' : 448
     }
 
     vqa = VQA_model(options)
-    vqa.build_model()
+    vqa.build_model_attention()
 
 if __name__ == '__main__':
     main()

@@ -12,3 +12,4 @@ transfer2.sh
 Data/*
 !Data/download_data.sh
 .DS_Store
+Paper/

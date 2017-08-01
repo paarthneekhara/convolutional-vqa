@@ -253,11 +253,11 @@ class vgg16:
 def create_vgg_model():
     sess = tf.Session()
     images = tf.placeholder(tf.float32, [None, 224, 224, 3])
-    vgg = vgg16(images, '../Data/CNNModels/vgg16_weights.npz', sess)
-    
+    vgg = vgg16(images, 'Data/CNNModels/vgg16_weights.npz', sess)
+
     return {
         'images_placeholder' : images,
-        'image_feature_layer' : vgg.fc2,
+        'image_feature_layer' : vgg.pool5,
         'session' : sess
     }
 
@@ -265,13 +265,19 @@ def create_vgg_model():
 
 if __name__ == '__main__':
     sess = tf.Session()
-    imgs = tf.placeholder(tf.float32, [None, 224, 224, 3])
-    vgg = vgg16(imgs, 'vgg16_weights.npz', sess)
+    imgs = tf.placeholder(tf.float32, [None, 448, 448, 3])
+    vgg = vgg16(imgs, sess)
 
-    img1 = imread('laska.png', mode='RGB')
-    img1 = imresize(img1, (224, 224))
+    graph = tf.get_default_graph()
+    for opn in graph.get_operations():
+        print "Name", opn.name, opn.values()
 
-    prob = sess.run(vgg.probs, feed_dict={vgg.imgs: [img1]})[0]
-    preds = (np.argsort(prob)[::-1])[0:5]
-    for p in preds:
-        print class_names[p], prob[p]
+    print vgg.pool5
+
+    # img1 = imread('laska.png', mode='RGB')
+    # img1 = imresize(img1, (224, 224))
+
+    # prob = sess.run(vgg.probs, feed_dict={vgg.imgs: [img1]})[0]
+    # preds = (np.argsort(prob)[::-1])[0:5]
+    # for p in preds:
+    #     print class_names[p], prob[p]

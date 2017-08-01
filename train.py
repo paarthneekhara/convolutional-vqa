@@ -3,6 +3,8 @@ from Models import VQA_model
 import data_loader
 import argparse
 import numpy as np
+from os.path import isfile, join
+import utils
 
 def main():
     parser = argparse.ArgumentParser()
@@ -49,17 +51,12 @@ def main():
             'text_length' : qa_data['max_question_length'],
             'n_source_quant' : len(qa_data['question_vocab']),
             'ans_vocab_size' : len(qa_data['answer_vocab']),
-            'encoder_filter_width' : 5,
+            'encoder_filter_width' : 3,
             'batch_size' : args.batch_size,
             'word_vector' : qa_data['word_vector'],
             'words_vectors_provided' : True,
             'length_of_word_vector' : 300,
-            'encoder_dilations' : [1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16
-            ]
+            'encoder_dilations' : [1, 2, 4, 8, 16]
         }
     else:
         model_options = {
@@ -71,12 +68,7 @@ def main():
             'encoder_filter_width' : 5,
             'batch_size' : args.batch_size,
             'words_vectors_provided' : False,
-            'encoder_dilations' : [1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16,
-                              1, 2, 4, 8, 16
-            ]
+            'encoder_dilations' : [1, 2, 4, 8, 16]
         }
     
     
@@ -87,7 +79,7 @@ def main():
     sess = tf.InteractiveSession()
     tf.initialize_all_variables().run()
 
-    
+
     saver = tf.train.Saver()
     if args.resume_model:
         saver.restore(sess, args.resume_model)
@@ -131,21 +123,32 @@ def get_training_batch(batch_no, batch_size, fc7_features, image_id_map, qa_data
     si = (batch_no * batch_size)%len(qa)
     ei = min(len(qa), si + batch_size)
     n = ei - si
-    sentence = np.ndarray( (n, qa_data['max_question_length']), dtype = 'int32')
+
+    word_vectors = None
+    if qa_data['word_vectors']:
+        word_vectors = qa_data['word_vectors']
+        sentence = np.ndarray( (n, qa_data['max_question_length'], 300), dtype = 'float32')
+    else:
+        sentence = np.ndarray( (n, qa_data['max_question_length']), dtype = 'int32')
+
     answer = np.zeros( (n, len(qa_data['answer_vocab'])))
+    
     fc7 = np.ndarray( (n,4096) )
 
     count = 0
     for i in range(si, ei):
-        if qa_data['word_vector']:
-            sentence[count,:] = qa[i]['question_word_vector'][:]
+        if word_vectors:
+            for qwi in xrange(max_question_length):
+                sentence[count,qwi,:] =  word_vectors[ qa[i]['question'][qwi] ]
         else:
             sentence[count,:] = qa[i]['question'][:]
         answer[count, qa[i]['answer']] = 1.0
-        fc7_index = image_id_map[ qa[i]['image_id'] ]
-        fc7[count,:] = fc7_features[fc7_index][:]
+        image_file = join(args.data_dir, '%s2014/COCO_%s2014_%.12d.jpg'%(split, split, qa[i]['image_id'] ) )
+        image_array = utils.load_image_array(image_file)
+        # fc7_index = image_id_map[ qa[i]['image_id'] ]
+        # fc7[count,:] = fc7_features[fc7_index][:]
         count += 1
-    
+
     return sentence, answer, fc7
 
 if __name__ == '__main__':

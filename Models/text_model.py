@@ -21,6 +21,11 @@ class TextModel:
             self.w_source_embedding = tf.get_variable('w_source_embedding', 
             [options['length_of_word_vector'], 2*options['residual_channels']],
             initializer=tf.truncated_normal_initializer(stddev=0.02))
+
+            self.b_source_embedding = tf.get_variable('b_source_embedding', 
+            [ 2*options['residual_channels'] ],
+            initializer=tf.truncated_normal_initializer(stddev=0.02))
+
         else:
             self.w_source_embedding = tf.get_variable('w_source_embedding', 
             [options['n_source_quant'], 2*options['residual_channels']],
@@ -32,7 +37,7 @@ class TextModel:
         if options['words_vectors_provided']:
             source_sentence = tf.placeholder('float32', [options['batch_size'],options['text_length'], options['length_of_word_vector']], name = 'sentence')
             embed = tf.reshape(source_sentence,[-1,300])
-            source_embedding  = tf.matmul(embed,self.w_source_embedding)
+            source_embedding  = tf.matmul(embed,self.w_source_embedding) + self.b_source_embedding
             source_embedding = tf.reshape(source_embedding,[options['batch_size'],options['text_length'],-1])
             print source_embedding
         else:
@@ -49,17 +54,17 @@ class TextModel:
 
     def encode_layer(self, input_, dilation, layer_no, last_layer = False, train = True):
         options = self.options
-        # input_ln = layer_norm(input_, trainable = train)
+        input_ = layer_norm(input_, trainable = train)
         relu1 = tf.nn.relu(input_, name = 'enc_relu1_layer{}'.format(layer_no))
         conv1 = ops.conv1d(relu1, options['residual_channels'], name = 'enc_conv1d_1_layer{}'.format(layer_no))
-        # conv1 = layer_norm(conv1, trainable = train)
+        conv1 = layer_norm(conv1, trainable = train)
         relu2 = tf.nn.relu(conv1, name = 'enc_relu2_layer{}'.format(layer_no))
         dilated_conv = ops.dilated_conv1d(relu2, options['residual_channels'], 
             dilation, options['encoder_filter_width'],
-            causal = False, 
+            causal = True, 
             name = "enc_dilated_conv_layer{}".format(layer_no)
             )
-        # dilated_conv = layer_norm(dilated_conv, trainable = train)
+        dilated_conv = layer_norm(dilated_conv, trainable = train)
         relu3 = tf.nn.relu(dilated_conv, name = 'enc_relu3_layer{}'.format(layer_no))
         conv2 = ops.conv1d(relu3, 2 * options['residual_channels'], name = 'enc_conv1d_2_layer{}'.format(layer_no))
         return input_ + conv2
@@ -69,8 +74,6 @@ class TextModel:
         curr_input = input_
         for layer_no, dilation in enumerate(self.options['encoder_dilations']):
             layer_output = self.encode_layer(curr_input, dilation, layer_no, train)
-            # ENCODE ONLY TILL THE INPUT LENGTH, conditioning should be 0 beyond that
-            # layer_output = tf.mul(layer_output, self.souce_embedding, name = 'layer_{}_output'.format(layer_no))
             curr_input = layer_output
         
         processed_output = tf.nn.relu( ops.conv1d(tf.nn.relu(layer_output), 

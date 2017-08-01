@@ -1,4 +1,4 @@
-from convert import print_prob, load_image, checkpoint_fn, meta_fn
+# from convert import print_prob, load_image, checkpoint_fn, meta_fn
 import tensorflow as tf
 
 def create_resnet_model():
