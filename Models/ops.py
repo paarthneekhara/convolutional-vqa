@@ -33,6 +33,18 @@ def conv1d(input_, output_channels,
         conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
         return conv
 
+def fully_connected(input_, output_nodes, stddev=0.02):
+    with tf.variable_scope(name):
+        input_shape = input_.get_shape()
+        input_nodes = input_shape[-1]
+        w = tf.get_variable('w', [input_nodes, output_nodes], 
+            initializer=tf.truncated_normal_initializer(stddev=0.02))
+        biases = tf.get_variable('b', [output_nodes], 
+            initializer=tf.constant_initializer(0.0))
+        res = tf.matmul(input_, w) + biases
+        return res
+
+
 def dilated_conv1d(input_, output_channels, dilation, 
     filter_width = 1, causal = False, name = 'dilated_conv'):
     
@@ -57,6 +69,3 @@ def dilated_conv1d(input_, output_channels, dilation,
     result = tf.slice(restored,[0, 0, 0],[-1, int(input_.get_shape()[1]), -1])
     
     return result
-
-
-

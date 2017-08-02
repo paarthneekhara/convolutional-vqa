@@ -17,16 +17,8 @@ class TextModel:
         length_of_word_vector : Lrngth of the Word Vectors Provided/residual_channels
         '''
         self.options = options
-        if options['words_vectors_provided']:
-            self.w_source_embedding = tf.get_variable('w_source_embedding', 
-            [options['length_of_word_vector'], 2*options['residual_channels']],
-            initializer=tf.truncated_normal_initializer(stddev=0.02))
-
-            self.b_source_embedding = tf.get_variable('b_source_embedding', 
-            [ 2*options['residual_channels'] ],
-            initializer=tf.truncated_normal_initializer(stddev=0.02))
-
-        else:
+        
+        if not options['words_vectors_provided']:
             self.w_source_embedding = tf.get_variable('w_source_embedding', 
             [options['n_source_quant'], 2*options['residual_channels']],
             initializer=tf.truncated_normal_initializer(stddev=0.02))
@@ -36,8 +28,8 @@ class TextModel:
         options = self.options
         if options['words_vectors_provided']:
             source_sentence = tf.placeholder('float32', [options['batch_size'],options['text_length'], options['length_of_word_vector']], name = 'sentence')
-            embed = tf.reshape(source_sentence,[-1,300])
-            source_embedding  = tf.matmul(embed,self.w_source_embedding) + self.b_source_embedding
+            source_sentence_reshaped = tf.reshape(source_sentence,[-1,300])
+            source_embedding = ops.fully_connected(source_sentence_reshaped, options['length_of_word_vector'])
             source_embedding = tf.reshape(source_embedding,[options['batch_size'],options['text_length'],-1])
             print source_embedding
         else:
@@ -45,7 +37,6 @@ class TextModel:
             source_embedding = tf.nn.embedding_lookup(self.w_source_embedding, source_sentence)
             print source_embedding
         encoded_sentence = self.encoder(source_embedding, train = train)
-
         return {
             'source_sentence' : source_sentence,
             'encoded_sentence' : encoded_sentence

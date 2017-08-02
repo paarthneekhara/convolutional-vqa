@@ -25,7 +25,7 @@ def load_image_array(image_file):
         img_new[:,:,2] = img
         img = img_new
 
-    img_resized = misc.imresize(img, (224, 224))
+    img_resized = misc.imresize(img, (448, 448))
     return img_resized
 # FOR PREDICTION ON A SINGLE IMAGE
 def extract_fc7_features(image_path, model_path):
