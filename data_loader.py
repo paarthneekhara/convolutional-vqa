@@ -74,7 +74,7 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         if ans in answer_vocab:
             training_data.append({
                 'image_id' : t_answers['annotations'][i]['image_id'],
-                'question' : np.zeros(max_question_length),
+                'question' : np.zeros(max_question_length, dtype = "int32"),
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
@@ -91,7 +91,7 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         if ans in answer_vocab:
             val_data.append({
                 'image_id' : v_answers['annotations'][i]['image_id'],
-                'question' : np.zeros(max_question_length),
+                'question' : np.zeros(max_question_length, dtype = "int32"),
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
@@ -141,7 +141,7 @@ def get_question_answer_vocab(version = 2, data_dir = 'Data'):
     return vocab_data
 
 def make_answer_vocab(answers):
-    top_n = 1000
+    top_n = 3000
     answer_frequency = {} 
     for annotation in answers:
         answer = annotation['multiple_choice_answer']

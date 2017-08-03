@@ -16,8 +16,8 @@ class vgg16:
     def __init__(self, imgs, weights=None, sess=None):
         self.imgs = imgs
         self.convlayers()
-        self.fc_layers()
-        self.probs = tf.nn.softmax(self.fc3l)
+        # self.fc_layers()
+        # self.probs = tf.nn.softmax(self.fc3l)
         if weights is not None and sess is not None:
             self.load_weights(weights, sess)
 
@@ -247,7 +247,9 @@ class vgg16:
         weights = np.load(weight_file)
         keys = sorted(weights.keys())
         for i, k in enumerate(keys):
-            print i, k, np.shape(weights[k])
+            print i, k, np.shape(weights[k]), len(self.parameters)
+            if i >= len(self.parameters):
+                break
             sess.run(self.parameters[i].assign(weights[k]))
 
 def create_vgg_model():

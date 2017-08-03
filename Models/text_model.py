@@ -29,7 +29,7 @@ class TextModel:
         if options['words_vectors_provided']:
             source_sentence = tf.placeholder('float32', [options['batch_size'],options['text_length'], options['length_of_word_vector']], name = 'sentence')
             source_sentence_reshaped = tf.reshape(source_sentence,[-1,300])
-            source_embedding = ops.fully_connected(source_sentence_reshaped, options['length_of_word_vector'])
+            source_embedding = ops.fully_connected(source_sentence_reshaped, 2*options['residual_channels'], name = "tm_source_embedding")
             source_embedding = tf.reshape(source_embedding,[options['batch_size'],options['text_length'],-1])
             print source_embedding
         else:
@@ -63,10 +63,16 @@ class TextModel:
     def encoder(self, input_, train = True):
         options = self.options
         curr_input = input_
+
         for layer_no, dilation in enumerate(self.options['encoder_dilations']):
+            if train:
+                curr_input = tf.nn.dropout(curr_input, 0.5)
             layer_output = self.encode_layer(curr_input, dilation, layer_no, train)
             curr_input = layer_output
         
+        if train:
+            layer_output = tf.nn.dropout(layer_output, 0.5)
+
         processed_output = tf.nn.relu( ops.conv1d(tf.nn.relu(layer_output), 
             options['residual_channels'], 
             name = 'encoder_post_processing') )

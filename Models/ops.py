@@ -33,7 +33,7 @@ def conv1d(input_, output_channels,
         conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
         return conv
 
-def fully_connected(input_, output_nodes, stddev=0.02):
+def fully_connected(input_, output_nodes, name, stddev=0.02):
     with tf.variable_scope(name):
         input_shape = input_.get_shape()
         input_nodes = input_shape[-1]

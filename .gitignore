@@ -13,3 +13,4 @@ Data/*
 !Data/download_data.sh
 .DS_Store
 Paper/
+sample.sh
