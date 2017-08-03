@@ -102,7 +102,7 @@ def main():
             batch_no += 1
             if args.debug:
                 if batch_no % args.debug_every == 0:
-                    save_batch(image, sentence_words, answer_words, pred, ans_vocab_rev, 'Data/debug')
+                    save_batch(image, sentence_words, sentence, answer_words, pred, ans_vocab_rev, 'Data/debug')
                     for idx, p in enumerate(pred):
                         print ans_vocab_rev[p], ans_vocab_rev[ np.argmax(answer[idx])]
 
@@ -112,14 +112,14 @@ def main():
         
         save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, i))
         
-def save_batch(image_batch, sentence_batch, 
+def save_batch(image_batch, sentence_batch, sentence,
     answer_batch, predictions, ans_vocab_rev, data_dir):
     line_str = ""
     for i in range(len(sentence_batch)):
         sentence_text = " ".join(str(s) for s in sentence_batch[i])
         answer_text = answer_batch[i]
-        line_str += "{} question = {} \n {} answer_actual = {} \n {} answer_pred = {} \n \n".format(
-            i, sentence_text, i, answer_text, i, ans_vocab_rev[ predictions[i] ])
+        line_str += "{} question = {} \n{} answer_actual = {} \n{} answer_pred = {} \n{} vector = {} \n".format(
+            i, sentence_text, i, answer_text, i, ans_vocab_rev[ predictions[i]] , i, np.array_str(sentence[i]) )
         scipy.misc.imsave(join(data_dir, '{}.jpg'.format(i)), image_batch[i])
 
     with open(join(data_dir, "ques_ans.txt"), 'wb') as f:
@@ -160,7 +160,7 @@ def get_training_batch(batch_no, batch_size,
         for qwi in xrange(max_question_length):
             sentence_batch[count,qwi,:] =  word_vectors[ qa[i]['question'][qwi] ]
             word =  ques_vocab_rev[ qa[i]['question'][qwi] ]
-            sentence_words_batch[i].append(word)
+            sentence_words_batch[count].append(word)
 
         answer_batch[count, qa[i]['answer']] = 1.0
         answer_word = ans_vocab_rev[ qa[i]['answer'] ]
