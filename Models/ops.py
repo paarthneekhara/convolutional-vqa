@@ -25,10 +25,10 @@ def conv1d(input_, output_channels,
         if causal:
             padding = [[0, 0], [(filter_width - 1) * dilation, 0], [0, 0]]
             padded = tf.pad(input_, padding)
-            input_expanded = tf.expand_dims(padded, axis = 1)
+            input_expanded = tf.expand_dims(padded, dim = 1)
             out = tf.nn.atrous_conv2d(input_expanded, w, rate = dilation, padding = 'VALID') + b
         else:
-            input_expanded = tf.expand_dims(input_, axis = 1)
+            input_expanded = tf.expand_dims(input_, dim = 1)
             out = tf.nn.atrous_conv2d(input_expanded, w, rate = dilation, padding = 'SAME') + b
 
         return tf.squeeze(out, [1])

@@ -78,10 +78,10 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
-
+            question_words.append(".")
             base = max_question_length - len(question_words)
             for i in range(0, len(question_words)):
-                training_data[-1]['question'][base + i] = question_vocab[ question_words[i] ]
+                training_data[-1]['question'][i] = question_vocab[ question_words[i] ]
 
 
     print "Training Data", len(training_data)
@@ -95,10 +95,10 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
-
+            question_words.append(".")
             base = max_question_length - len(question_words)
             for i in range(0, len(question_words)):
-                val_data[-1]['question'][base + i] = question_vocab[ question_words[i] ]
+                val_data[-1]['question'][i] = question_vocab[ question_words[i] ]
     
     print "Validation Data", len(val_data)
     
@@ -174,6 +174,8 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
         count = 0
         if ans in answer_vocab:
             question_words = re.findall(word_regex, question['question'])
+            # EOL
+            question_words.append(".")
             for qw in question_words:
                 if qw in question_frequency:
                     question_frequency[qw] += 1
@@ -190,7 +192,7 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
 
     qw_vocab = {}
     word_vector = {}  
-    default_word_vector = np.zeros(300)
+    default_word_vector = np.ones(300)
     words_notfound = 0
     for i, qw_freq in enumerate(qw_tuples):
         frequency = -qw_freq[0]
@@ -211,6 +213,7 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
     word_vector[len(qw_vocab) + 1] = np.ones(300)
 
     print 'words not found' + str(words_notfound)
+    print "total words", len(qw_vocab)
     return qw_vocab, max_question_length, word_vector
 
 

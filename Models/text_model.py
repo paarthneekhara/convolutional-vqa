@@ -54,7 +54,7 @@ class TextModel:
         conv1 = ops.conv1d(relu1, options['residual_channels'], name = 'enc_conv1d_1_layer{}'.format(layer_no))
         # conv1 = layer_norm(conv1, trainable = train)
         relu2 = tf.nn.relu(conv1, name = 'enc_relu2_layer{}'.format(layer_no))
-        dilated_conv = ops.dilated_conv1d(relu2, options['residual_channels'], 
+        dilated_conv = ops.conv1d(relu2, options['residual_channels'], 
             dilation, options['encoder_filter_width'],
             causal = True, 
             name = "enc_dilated_conv_layer{}".format(layer_no)
