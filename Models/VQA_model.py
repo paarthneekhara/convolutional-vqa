@@ -27,16 +27,17 @@ class VQA_model:
         image_features_flat = tf.reshape(image_features, 
             [-1, 14 * 14, 512 ], 
             name = 'image_features_flat')
-        image_features_flat = tf.nn.dropout(image_features_flat, 0.5)
+        # image_features_flat = tf.nn.dropout(image_features_flat, 0.5)
 
         bytenet_tensors = text_model_v2.encoder_bytenet(source_sentence, options)
         encoded_sentence = bytenet_tensors['last_seq_element']
-        encoded_sentence = tf.nn.dropout(encoded_sentence, 0.5)
+        # encoded_sentence = tf.nn.dropout(encoded_sentence, 0.5)
         # DROPOUT KE BAARE MEI SOCH
         encoded_sentence_tiled = tf.tile( tf.expand_dims(encoded_sentence, dim = 1), [1, 14 * 14, 1], 
             name = 'encoded_sentence_tiled')
 
         combined_features = tf.concat([image_features_flat, encoded_sentence_tiled], axis = 2)
+        combined_features = tf.nn.dropout(combined_features, 0.8)
         # combined_features = tf.concat(2, [image_features_flat, encoded_sentence_tiled])
         combined_features = ops.conv1d(combined_features, 512, name = "attention_conv_1")
         combined_features = tf.nn.relu(combined_features)
@@ -49,15 +50,15 @@ class VQA_model:
 
         prob1 = tf.expand_dims(tf.nn.softmax(combined_logits_1), dim = 2)
         prob2 = tf.expand_dims(tf.nn.softmax(combined_logits_2), dim = 2)
-        weighted_image_features = tf.mul(image_features_flat, prob1) + tf.mul(image_features_flat, prob2)
-        image_features_reduced = tf.reduce_mean(weighted_image_features, 1)
+        weighted_image_features = tf.multiply(image_features_flat, prob1) + tf.multiply(image_features_flat, prob2)
+        image_features_reduced = tf.reduce_sum(weighted_image_features, 1)
 
-        combined_embedding = tf.concat([image_features_reduced, sentence_embedding], axis = 1)
+        combined_embedding = tf.concat([image_features_reduced, encoded_sentence], axis = 1)
         # combined_embedding = tf.concat(1, [image_features_reduced, encoded_sentence])
-        combined_embedding = tf.nn.dropout(combined_embedding, 0.5)
+        combined_embedding = tf.nn.dropout(combined_embedding, 0.8)
 
         combined_fc_1 = tf.nn.relu(ops.fully_connected(combined_embedding, 1024, name = "combined_fc_1"))
-        combined_fc_1 = tf.nn.dropout(combined_fc_1, 0.5)
+        combined_fc_1 = tf.nn.dropout(combined_fc_1, 0.8)
         logits = ops.fully_connected(combined_fc_1, options['ans_vocab_size'], name = "logits")
         
         ce = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=answer, name = 'ce')
@@ -95,7 +96,8 @@ class VQA_model:
             'loss' : loss,
             'accuracy' : accuracy,
             'predictions' : predictions,
-            'vgg' : vgg
+            'vgg' : vgg,
+            'length' : bytenet_tensors['length']
         }
 
         return vqa_model

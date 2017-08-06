@@ -8,6 +8,7 @@ import utils
 import scipy.misc
 import gc
 import time
+from random import shuffle
 
 def main():
     parser = argparse.ArgumentParser()
@@ -37,6 +38,8 @@ def main():
     
     print "Reading QA DATA", args.version
     qa_data = data_loader.load_questions_answers(args.version, args.data_dir)
+    shuffle(qa_data['training'])
+    shuffle(qa_data['validation'])
     qa_data['ans_vocab_rev'] = { qa_data['answer_vocab'][ans] : ans for ans in qa_data['answer_vocab']}
     qa_data['ques_vocab_rev'] = { qa_data['question_vocab'][qw] : qw for qw in qa_data['question_vocab']}
     qa_data['ques_vocab_rev'][0] = ""
@@ -89,7 +92,8 @@ def main():
         while ((batch_no + 1)*args.batch_size) < len(qa_data['training']):
             start = time.clock()
             sentence, answer, image, sentence_words, answer_words = get_training_batch(batch_no, args.batch_size, qa_data, 'train')
-            _, loss_value, accuracy, pred, pmap1, pmap2 = sess.run([train_op, t_loss, t_accuracy, t_p, pm1, pm2], 
+            _, loss_value, accuracy, pred, pmap1, pmap2, length = sess.run([
+                train_op, t_loss, t_accuracy, t_p, pm1, pm2, vqa_model['length']], 
                 feed_dict={
                     input_tensors['image']:image,
                     input_tensors['source_sentence']:sentence,
@@ -102,7 +106,7 @@ def main():
             batch_no += 1
             if args.debug:
                 if batch_no % args.debug_every == 0:
-                    save_batch(image, sentence_words, sentence, answer_words, pred, ans_vocab_rev, 'Data/debug')
+                    save_batch(image, sentence_words, sentence, answer_words, pred, ans_vocab_rev, length, 'Data/debug')
                     for idx, p in enumerate(pred):
                         print ans_vocab_rev[p], ans_vocab_rev[ np.argmax(answer[idx])]
 
@@ -113,19 +117,18 @@ def main():
         save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, i))
         
 def save_batch(image_batch, sentence_batch, sentence,
-    answer_batch, predictions, ans_vocab_rev, data_dir):
+    answer_batch, predictions, ans_vocab_rev, length, data_dir):
     line_str = ""
     for i in range(len(sentence_batch)):
         sentence_text = " ".join(str(s) for s in sentence_batch[i])
         answer_text = answer_batch[i]
-        line_str += "{} question = {} \n{} answer_actual = {} \n{} answer_pred = {} \n{} vector = {} \n".format(
-            i, sentence_text, i, answer_text, i, ans_vocab_rev[ predictions[i]] , i, np.array_str(sentence[i]) )
+        line_str += "{} question = {} \n{} answer_actual = {} \n{} answer_pred = {} {} \n{} vector = {} \n".format(
+            i, sentence_text, i, answer_text, length[i], i, ans_vocab_rev[ predictions[i]] , i, np.array_str(sentence[i]) )
         scipy.misc.imsave(join(data_dir, '{}.jpg'.format(i)), image_batch[i])
 
     with open(join(data_dir, "ques_ans.txt"), 'wb') as f:
         f.write(line_str)
         f.close()
-
 
 
 def get_training_batch(batch_no, batch_size, 
