@@ -16,8 +16,8 @@ class vgg16:
     def __init__(self, imgs, weights=None, sess=None):
         self.imgs = imgs
         self.convlayers()
-        # self.fc_layers()
-        # self.probs = tf.nn.softmax(self.fc3l)
+        self.fc_layers()
+        self.probs = tf.nn.softmax(self.fc3l)
         if weights is not None and sess is not None:
             self.load_weights(weights, sess)
 
@@ -260,6 +260,7 @@ def create_vgg_model():
     return {
         'images_placeholder' : images,
         'image_feature_layer' : vgg.pool5,
+        'fc7' : vgg.fc2,
         'session' : sess
     }
 
@@ -274,7 +275,8 @@ if __name__ == '__main__':
     for opn in graph.get_operations():
         print "Name", opn.name, opn.values()
 
-    print vgg.pool5
+    print vgg.fc1
+    print vgg.fc2
 
     # img1 = imread('laska.png', mode='RGB')
     # img1 = imresize(img1, (224, 224))

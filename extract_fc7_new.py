@@ -50,10 +50,10 @@ def main():
 
     sess = cnn_model['session']
     images = cnn_model['images_placeholder']
-    image_feature_layer = cnn_model['image_feature_layer']
+    image_feature_layer = cnn_model['fc7']
 
     print "initialising features array"
-    conv_features = np.ndarray( (len(image_id_list), 14, 14, 512 ) , dtype = 'float32')
+    conv_features = np.ndarray( (len(image_id_list), 4096) , dtype = 'float32')
     print "initialised feature array"
 
     idx = 0
@@ -66,18 +66,18 @@ def main():
             if idx >= len(image_id_list):
                 break
             image_file = join(args.data_dir, '%s2014/COCO_%s2014_%.12d.jpg'%(args.split, args.split, image_id_list[idx]) )
-            image_batch[i,:,:,:] = utils.load_image_array(image_file)
+            image_batch[i,:,:,:] = utils.load_image_array(image_file, 224)
             idx += 1
             count += 1
         
         
         feed_dict  = { images : image_batch[0:count,:,:,:] }
         conv_features_batch = sess.run(image_feature_layer, feed_dict = feed_dict)
-        conv_features[(idx - count):idx, :,:,:] = conv_features_batch[0:count,:,:,:]
+        conv_features[(idx - count):idx, :] = conv_features_batch[0:count,:]
 
         end = time.clock()
-        print "Time for batch 10 photos", end - start
-        print "Hours Remaining" , ((len(image_id_list) - idx) * 1.0)*(end - start)/60.0/60.0/10.0
+        print "Time for batch of photos", end - start
+        print "Hours Remaining" , ((len(image_id_list) - idx) * 1.0)*(end - start)/60.0/60.0/args.batch_size
         print "Images Processed", idx
 
         

@@ -217,14 +217,19 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
     return qw_vocab, max_question_length, word_vector
 
 
-def load_fc7_features(data_dir, split):
+def load_fc7_features(data_dir, model_type='vgg', version=2, split='train'):
     import h5py
     fc7_features = None
     image_id_list = None
-    with h5py.File( join( data_dir, (split + '_fc7.h5')),'r') as hf:
-        fc7_features = np.array(hf.get('fc7_features'))
-    with h5py.File( join( data_dir, (split + '_image_id_list.h5')),'r') as hf:
+
+    fc7_file_name = "conv_features_features_{}_{}_{}.h5".format(model_type, version, split)
+    with h5py.File( join( data_dir, fc7_file_name),'r') as hf:
+        fc7_features = np.array(hf.get('conv_features_features'))
+
+    img_id_file_name = "image_id_list_{}_{}_{}.h5".format(model_type, version, split)
+    with h5py.File( join( data_dir, img_id_file_name ),'r') as hf:
         image_id_list = np.array(hf.get('image_id_list'))
+    
     return fc7_features, image_id_list
 
 

@@ -1,4 +1,5 @@
 import tensorflow as tf
+import math
 
 def fully_connected(input_, output_nodes, name, stddev=0.02):
     with tf.variable_scope(name):
@@ -32,3 +33,9 @@ def conv1d(input_, output_channels,
             out = tf.nn.atrous_conv2d(input_expanded, w, rate = dilation, padding = 'SAME') + b
 
         return tf.squeeze(out, [1])
+
+def init_weight(dim_in, dim_out, name=None, stddev=1.0):
+    return tf.Variable(tf.truncated_normal([dim_in, dim_out], stddev=stddev/math.sqrt(float(dim_in))), name=name)
+
+def init_bias(dim_out, name=None):
+    return tf.Variable(tf.zeros([dim_out]), name=name)
