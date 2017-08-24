@@ -5,8 +5,6 @@ import re
 import numpy as np
 import pprint
 import pickle
-import argparse
-
 
 def prepare_training_data(version = 2, data_dir = 'Data'):
     if version == 1:
@@ -26,19 +24,12 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         qa_data_file = join(data_dir, 'qa_data_file2.pkl')
         vocab_file = join(data_dir, 'vocab_file2.pkl')
 
-    glove_vectors_file = join(data_dir, 'glove.42B.300d.txt')
-    print "Loading Word Vectors"
-    with open(glove_vectors_file) as f:
-        glove_vectors_line_array = (f.read().split("\n"))
-
-    glove_vectors = {}
-    glove_vectors_split = []
-    i = 0
-    
-    for gvl in glove_vectors_line_array[0:-1]:
-        glove_vectors_split = gvl.split()
-        word_vector = np.array( [ float(value) for value in glove_vectors_split[1:] ])
-        glove_vectors[glove_vectors_split[0]] = word_vector
+    # IF ALREADY EXTRACTED
+    # qa_data_file = join(data_dir, 'qa_data_file{}.pkl'.format(version))
+    if isfile(qa_data_file):
+        with open(qa_data_file) as f:
+            data = pickle.load(f)
+            return data
 
     print "Loading Training questions"
     with open(t_q_json_file) as f:
@@ -62,10 +53,9 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
 
     answers = t_answers['annotations'] + v_answers['annotations']
     questions = t_questions['questions'] + v_questions['questions']
-
+    
     answer_vocab = make_answer_vocab(answers)
-    question_vocab, max_question_length, word_vectors = make_questions_vocab(questions, answers, answer_vocab,glove_vectors)
-
+    question_vocab, max_question_length = make_questions_vocab(questions, answers, answer_vocab)
     print "Max Question Length", max_question_length
     word_regex = re.compile(r'\w+')
     training_data = []
@@ -74,15 +64,14 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         if ans in answer_vocab:
             training_data.append({
                 'image_id' : t_answers['annotations'][i]['image_id'],
-                'question' : np.zeros(max_question_length, dtype = "int32"),
+                'question' : np.zeros(max_question_length, dtype='int32'),
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
-            question_words.append(".")
+
             base = max_question_length - len(question_words)
             for i in range(0, len(question_words)):
-                training_data[-1]['question'][i] = question_vocab[ question_words[i] ]
-
+                training_data[-1]['question'][base + i] = question_vocab[ question_words[i] ]
 
     print "Training Data", len(training_data)
     val_data = []
@@ -91,24 +80,23 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         if ans in answer_vocab:
             val_data.append({
                 'image_id' : v_answers['annotations'][i]['image_id'],
-                'question' : np.zeros(max_question_length, dtype = "int32"),
+                'question' : np.zeros(max_question_length, dtype='int32'),
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
-            question_words.append(".")
+
             base = max_question_length - len(question_words)
             for i in range(0, len(question_words)):
-                val_data[-1]['question'][i] = question_vocab[ question_words[i] ]
-    
+                val_data[-1]['question'][base + i] = question_vocab[ question_words[i] ]
+
     print "Validation Data", len(val_data)
-    
+
     data = {
         'training' : training_data,
         'validation' : val_data,
         'answer_vocab' : answer_vocab,
         'question_vocab' : question_vocab,
-        'max_question_length' : max_question_length,
-        'word_vectors' : word_vectors
+        'max_question_length' : max_question_length
     }
 
     print "Saving qa_data"
@@ -119,14 +107,12 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         vocab_data = {
             'answer_vocab' : data['answer_vocab'],
             'question_vocab' : data['question_vocab'],
-            'max_question_length' : data['max_question_length'],
-            'word_vectors' : data['word_vectors']
+            'max_question_length' : data['max_question_length']
         }
         pickle.dump(vocab_data, f)
 
-    print "SAVED QUESTION ANSWER DATA"
-
-
+    return data
+    
 def load_questions_answers(version = 2, data_dir = 'Data'):
     qa_data_file = join(data_dir, 'qa_data_file{}.pkl'.format(version))
     
@@ -164,7 +150,7 @@ def make_answer_vocab(answers):
     return answer_vocab
 
 
-def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
+def make_questions_vocab(questions, answers, answer_vocab):
     word_regex = re.compile(r'\w+')
     question_frequency = {}
 
@@ -174,8 +160,6 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
         count = 0
         if ans in answer_vocab:
             question_words = re.findall(word_regex, question['question'])
-            # EOL
-            question_words.append(".")
             for qw in question_words:
                 if qw in question_frequency:
                     question_frequency[qw] += 1
@@ -191,9 +175,6 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
     # qw_tuples.sort()
 
     qw_vocab = {}
-    word_vector = {}  
-    default_word_vector = np.ones(300)
-    words_notfound = 0
     for i, qw_freq in enumerate(qw_tuples):
         frequency = -qw_freq[0]
         qw = qw_freq[1]
@@ -201,48 +182,20 @@ def make_questions_vocab(questions, answers, answer_vocab,glove_vectors):
         if frequency > qw_freq_threhold:
             # +1 for accounting the zero padding for batc training
             qw_vocab[qw] = i + 1
-            if qw not in glove_vectors:
-                word_vector[i + 1] = default_word_vector
-                words_notfound += 1
-            else:
-                word_vector[i+1] = glove_vectors[qw]
         else:
             break
 
     qw_vocab['UNK'] = len(qw_vocab) + 1
-    word_vector[len(qw_vocab) + 1] = np.ones(300)
 
-    print 'words not found' + str(words_notfound)
-    print "total words", len(qw_vocab)
-    return qw_vocab, max_question_length, word_vector
+    return qw_vocab, max_question_length
 
 
-def load_fc7_features(data_dir, model_type='vgg', version=2, split='train'):
+def load_fc7_features(data_dir, split):
     import h5py
     fc7_features = None
     image_id_list = None
-
-    fc7_file_name = "conv_features_features_{}_{}_{}.h5".format(model_type, version, split)
-    with h5py.File( join( data_dir, fc7_file_name),'r') as hf:
-        fc7_features = np.array(hf.get('conv_features_features'))
-
-    img_id_file_name = "image_id_list_{}_{}_{}.h5".format(model_type, version, split)
-    with h5py.File( join( data_dir, img_id_file_name ),'r') as hf:
+    with h5py.File( join( data_dir, (split + '_fc7.h5')),'r') as hf:
+        fc7_features = np.array(hf.get('fc7_features'))
+    with h5py.File( join( data_dir, (split + '_image_id_list.h5')),'r') as hf:
         image_id_list = np.array(hf.get('image_id_list'))
-    
     return fc7_features, image_id_list
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--version', type=int, default=1,
-                       help='VQA dataset version')
-    parser.add_argument('--data_dir', type=str, default="Data",
-                       help='VQA dataset version')
-    args = parser.parse_args()
-
-    prepare_training_data( args.version, args.data_dir)
-
-
-if __name__ == '__main__':
-    main()

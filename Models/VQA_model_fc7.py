@@ -8,7 +8,11 @@ class VQA_model:
     def __init__(self, options):
         self.options = options
 
-    def build_model(self):
+    def build_model(self, train = True):
+        dropout_rate = 1.0
+        if train:
+            dropout = 0.5
+
         options = self.options
         fc7_features = tf.placeholder('float32',
             [ None, self.options['fc7_feature_length'] ], 
@@ -23,24 +27,24 @@ class VQA_model:
 
         image_embedding = ops.fully_connected(fc7_features, 2 * options['residual_channels'], 
             name = "image_embedding")
-        image_embedding = tf.nn.dropout( tf.nn.tanh(image_embedding), 0.5)
+        image_embedding = tf.nn.dropout( tf.nn.tanh(image_embedding), dropout_rate)
         print "image_embedding", image_embedding
         
         # image_features_flat = tf.nn.dropout(image_features_flat, 0.5)
         if options['text_model'] == "bytenet":
             text_tensors = text_model_v2.encoder_bytenet(source_sentence, options)
         else:
-            text_tensors = text_model_v2.encoder_lstm(source_sentence, options)
+            text_tensors = text_model_v2.encoder_lstm(source_sentence, options, train)
 
         encoded_sentence = text_tensors['last_seq_element']
 
         encoded_embedding = ops.fully_connected(encoded_sentence, 2 * options['residual_channels'], 
             name = "encoded_embedding")
-        encoded_embedding = tf.nn.dropout( tf.nn.tanh(encoded_embedding),0.5 )
+        encoded_embedding = tf.nn.dropout( tf.nn.tanh(encoded_embedding), dropout_rate )
         print "encoded_embedding", encoded_embedding
 
         combined_features = encoded_embedding * image_embedding
-        combined_features = tf.nn.dropout( combined_features, 0.5)
+        combined_features = tf.nn.dropout( combined_features, dropout_rate)
         print "combined", combined_features
         logits = ops.fully_connected(combined_features, options['ans_vocab_size'], name = "logits")
         print "logits", logits

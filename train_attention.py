@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Models import VQA_model
+from Models import VQA_model_attention
 import data_loader
 import argparse
 import numpy as np

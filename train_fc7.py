@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Models import VQA_model_fc7, VQA_model_lstm
+from Models import VQA_model_fc7
 import data_loader
 import argparse
 import numpy as np
@@ -34,7 +34,7 @@ def main():
     parser.add_argument('--resume_model', type=str, default=None,
                        help='Trained Model Path')
     parser.add_argument('--text_model', type=str, default='bytenet',
-                       help='Text model to choose : butenet/lstm')
+                       help='Text model to choose : bytenet/lstm')
 
     args = parser.parse_args()
     
@@ -75,13 +75,10 @@ def main():
     print "MODEL OPTIONS"
     print model_options
 
-    if args.text_model == 'bytenet':
-        model = VQA_model_fc7.VQA_model(model_options)
-    else:
-        model = VQA_model_lstm.VQA_model(model_options)
-    # input_tensors, probability_maps, t_loss, t_accuracy, t_p, variables = model.build_model()
+    
+    model = VQA_model_fc7.VQA_model(model_options)
+    
     vqa_model = model.build_model()
-
     input_tensors = vqa_model['input_tensors']
     t_loss = vqa_model['loss']
     t_accuracy = vqa_model['accuracy']

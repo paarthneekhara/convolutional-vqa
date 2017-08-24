@@ -12,12 +12,14 @@ import tensorflow as tf
 import numpy as np
 from scipy.misc import imread, imresize
 
+
 class vgg16:
-    def __init__(self, imgs, weights=None, sess=None):
+    def __init__(self, imgs, weights=None, sess=None, only_conv = False):
         self.imgs = imgs
         self.convlayers()
-        self.fc_layers()
-        self.probs = tf.nn.softmax(self.fc3l)
+        if not only_conv:
+            self.fc_layers()
+            self.probs = tf.nn.softmax(self.fc3l)
         if weights is not None and sess is not None:
             self.load_weights(weights, sess)
 
@@ -252,15 +254,15 @@ class vgg16:
                 break
             sess.run(self.parameters[i].assign(weights[k]))
 
-def create_vgg_model():
+def create_vgg_model(img_dim, only_conv = False):
     sess = tf.Session()
-    images = tf.placeholder(tf.float32, [None, 224, 224, 3])
-    vgg = vgg16(images, 'Data/CNNModels/vgg16_weights.npz', sess)
+    images = tf.placeholder(tf.float32, [None, img_dim, img_dim, 3])
+    vgg = vgg16(images, 'Data/CNNModels/vgg16_weights.npz', sess, only_conv = only_conv)
 
     return {
         'images_placeholder' : images,
-        'image_feature_layer' : vgg.pool5,
-        'fc7' : vgg.fc2,
+        'pool5' : vgg.pool5,
+        'fc7' : vgg.fc2 if not only_conv else None,
         'session' : sess
     }
 
@@ -268,15 +270,16 @@ def create_vgg_model():
 
 if __name__ == '__main__':
     sess = tf.Session()
-    imgs = tf.placeholder(tf.float32, [None, 448, 448, 3])
-    vgg = vgg16(imgs, sess)
+    imgs = tf.placeholder(tf.float32, [None, 224, 224, 3])
+    vgg = vgg16(imgs, 'vgg16_weights.npz', sess)
 
-    graph = tf.get_default_graph()
-    for opn in graph.get_operations():
-        print "Name", opn.name, opn.values()
+    img1 = imread('6.jpg')
+    img1 = imresize(img1, (224, 224))
 
-    print vgg.fc1
-    print vgg.fc2
+    prob = sess.run(vgg.probs, feed_dict={vgg.imgs: [img1]})[0]
+    # preds = (np.argsort(prob)[::-1])[0:5]
+    # for p in preds:
+    #     print class_names[p], prob[p]
 
     # img1 = imread('laska.png', mode='RGB')
     # img1 = imresize(img1, (224, 224))

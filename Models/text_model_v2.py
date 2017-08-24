@@ -35,7 +35,8 @@ def encoder_lstm(source_sentence, options, train = True):
             else:
                 lstm_preactive = tf.matmul(h[lstm_step-1], lstm_U[l]) + tf.matmul(x[:,lstm_step,:], lstm_W[l]) + lstm_b[l]
             # i, f, o, new_c = tf.split(lstm_preactive, num_or_size_splits = 4, axis = 1)
-            i, f, o, new_c = tf.split(split_dim = 1, value = lstm_preactive, num_split = 4)
+            # split(value, num_or_size_splits, axis=0, num=None, name='split')
+            i, f, o, new_c = tf.split(value = lstm_preactive, num_or_size_splits = 4, axis = 1)
             i = tf.nn.sigmoid(i)
             f = tf.nn.sigmoid(f)
             o = tf.nn.sigmoid(o)

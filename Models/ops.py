@@ -34,6 +34,52 @@ def conv1d(input_, output_channels,
 
         return tf.squeeze(out, [1])
 
+def layer_normalization(x, name, epsilon=1e-8, trainable = True):
+    with tf.variable_scope(name):
+        shape = x.get_shape()
+        beta = tf.get_variable('beta', [ int(shape[-1])], 
+            initializer=tf.constant_initializer(0), trainable=trainable)
+        gamma = tf.get_variable('gamma', [ int(shape[-1])], 
+            initializer=tf.constant_initializer(1), trainable=trainable)
+        
+        mean, variance = tf.nn.moments(x, axes=[len(shape) - 1], keep_dims=True)
+        
+        x = (x - mean) /  tf.sqrt(variance + epsilon)
+
+        return gamma * x + beta
+
+def byetenet_residual_block(input_, dilation, layer_no, 
+    residual_channels, filter_width,
+    causal = True, train = True):
+        block_type = "decoder" if causal else "encoder"
+        block_name = "bytenet_{}_layer_{}_{}".format(block_type, layer_no, dilation)
+        with tf.variable_scope(block_name):
+            input_ln = layer_normalization(input_, name="ln1", trainable = train)
+            relu1 = tf.nn.relu(input_ln)
+            conv1 = conv1d(relu1, residual_channels, name = "conv1d_1")
+            conv1 = layer_normalization(conv1, name="ln2", trainable = train)
+            relu2 = tf.nn.relu(conv1)
+            
+            dilated_conv = conv1d(relu2, residual_channels, 
+                dilation, filter_width,
+                causal = causal,
+                name = "dilated_conv"
+                )
+            print dilated_conv
+            dilated_conv = layer_normalization(dilated_conv, name="ln3", trainable = train)
+            relu3 = tf.nn.relu(dilated_conv)
+            conv2 = conv1d(relu3, 2 * residual_channels, name = 'conv1d_2')
+            return input_ + conv2
+
+def last_seq_element(output, length):
+    batch_size = tf.shape(output)[0]
+    max_length = tf.shape(output)[1]
+    out_size = int(output.get_shape()[2])
+    index = tf.range(0, batch_size) * max_length + (length - 1)
+    flat = tf.reshape(output, [-1, out_size])
+    relevant = tf.gather(flat, index)
+    return relevant
+
 def init_weight(dim_in, dim_out, name=None, stddev=1.0):
     return tf.Variable(tf.truncated_normal([dim_in, dim_out], stddev=stddev/math.sqrt(float(dim_in))), name=name)
 
