@@ -26,10 +26,11 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
 
     # IF ALREADY EXTRACTED
     # qa_data_file = join(data_dir, 'qa_data_file{}.pkl'.format(version))
-    if isfile(qa_data_file):
-        with open(qa_data_file) as f:
-            data = pickle.load(f)
-            return data
+    
+    # if isfile(qa_data_file):
+    #     with open(qa_data_file) as f:
+    #         data = pickle.load(f)
+    #         return data
 
     print "Loading Training questions"
     with open(t_q_json_file) as f:
@@ -57,6 +58,7 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
     answer_vocab = make_answer_vocab(answers)
     question_vocab, max_question_length = make_questions_vocab(questions, answers, answer_vocab)
     print "Max Question Length", max_question_length
+    print len(question_vocab)
     word_regex = re.compile(r'\w+')
     training_data = []
     for i,question in enumerate( t_questions['questions']):
@@ -69,9 +71,8 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
                 })
             question_words = re.findall(word_regex, question['question'])
 
-            base = max_question_length - len(question_words)
             for i in range(0, len(question_words)):
-                training_data[-1]['question'][base + i] = question_vocab[ question_words[i] ]
+                training_data[-1]['question'][i] = question_vocab[ question_words[i] ]
 
     print "Training Data", len(training_data)
     val_data = []
@@ -84,10 +85,8 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
-
-            base = max_question_length - len(question_words)
             for i in range(0, len(question_words)):
-                val_data[-1]['question'][base + i] = question_vocab[ question_words[i] ]
+                val_data[-1]['question'][i] = question_vocab[ question_words[i] ]
 
     print "Validation Data", len(val_data)
 
@@ -190,12 +189,26 @@ def make_questions_vocab(questions, answers, answer_vocab):
     return qw_vocab, max_question_length
 
 
-def load_fc7_features(data_dir, split):
+def load_conv_features(version = 2, split = 'train', feature_layer = 'block4'):
     import h5py
-    fc7_features = None
-    image_id_list = None
-    with h5py.File( join( data_dir, (split + '_fc7.h5')),'r') as hf:
-        fc7_features = np.array(hf.get('fc7_features'))
-    with h5py.File( join( data_dir, (split + '_image_id_list.h5')),'r') as hf:
+    
+    conv_file = "Data/conv_features_{}_{}_{}.h5".format(version, split, feature_layer)
+    with h5py.File( conv_file,'r') as hf:
+        conv_features = np.array(hf.get('conv_features'))
+
+    image_id_file = "Data/image_id_list_{}_{}.h5".format(version, split)
+    with h5py.File( image_id_file,'r') as hf:
         image_id_list = np.array(hf.get('image_id_list'))
-    return fc7_features, image_id_list
+    
+    return conv_features, image_id_list
+
+def main():
+    print "wtfh"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--version', type=int, default=2,
+                       help='VQA data version')
+    args = parser.parse_args()
+    prepare_training_data(args.version)
+
+if __name__ =='__main__':
+    main()

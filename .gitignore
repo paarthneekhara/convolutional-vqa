@@ -15,3 +15,5 @@ Data/*
 Paper/
 sample.sh
 connect.sh
+Models/test.py
+train_attention_old.py

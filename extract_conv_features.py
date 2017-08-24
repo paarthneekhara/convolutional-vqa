@@ -29,7 +29,7 @@ def main():
 
     args = parser.parse_args()
     
-    all_data = data_loader.load_data(version = args.version)
+    all_data = data_loader.load_questions_answers(version = args.version)
     
     if args.split == "train":
         qa_data = all_data['training']
