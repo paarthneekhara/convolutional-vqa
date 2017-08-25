@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pprint
 import pickle
+import h5py
 
 def prepare_training_data(version = 2, data_dir = 'Data'):
     if version == 1:
@@ -188,18 +189,15 @@ def make_questions_vocab(questions, answers, answer_vocab):
 
     return qw_vocab, max_question_length
 
-
-def load_conv_features(version = 2, split = 'train', feature_layer = 'block4'):
-    import h5py
-    
-    conv_file = "Data/conv_features_{}_{}_{}.h5".format(version, split, feature_layer)
+def load_conv_features(split = 'train', bucket_no = 0, feature_layer = 'block4'):
+    conv_file = "Data/conv_features_{}/conv_features_{}_bucket_{}.h5".format(split, feature_layer, bucket_no)
     with h5py.File( conv_file,'r') as hf:
         conv_features = np.array(hf.get('conv_features'))
 
-    image_id_file = "Data/image_id_list_{}_{}.h5".format(version, split)
+    image_id_file = "Data/conv_features_{}/image_id_list_bucket_{}.h5".format(split, bucket_no)
     with h5py.File( image_id_file,'r') as hf:
         image_id_list = np.array(hf.get('image_id_list'))
-    
+
     return conv_features, image_id_list
 
 def main():

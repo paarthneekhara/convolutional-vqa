@@ -27,6 +27,7 @@ class VQA_model:
         context, prob1, prob2 = self.attend_image(image_features, encoded_question, options['dropout_keep_prob'])
 
         with tf.variable_scope("post_attention_fc"):
+            context = tf.nn.dropout(context, options['dropout_keep_prob'])
             fc_1 = tf.nn.relu(ops.fully_connected(context, 1024, name = "fc_1"))
             fc_1 = tf.nn.dropout(fc_1, options['dropout_keep_prob'])
             logits = ops.fully_connected(fc_1, options['ans_vocab_size'], name = "logits")

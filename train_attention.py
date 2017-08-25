@@ -13,6 +13,7 @@ import shutil
 import os
 from scipy import misc
 import json
+import pickle
 
 def main():
     parser = argparse.ArgumentParser()
@@ -27,7 +28,7 @@ def main():
                        help='Batch Size')
     parser.add_argument('--epochs', type=int, default=20,
                        help='Expochs')
-    parser.add_argument('--version', type=int, default=2,
+    parser.add_argument('--version', type=int, default=1,
                        help='VQA data version')
     parser.add_argument('--debug', type=bool, default=False,
                        help='Debug')
@@ -55,22 +56,23 @@ def main():
     ques_vocab_rev = qa_data['ques_vocab_rev']
 
     print "Reading conv features"
-    conv_features, image_id_list = data_loader.load_conv_features(args.version, 'train', args.feature_layer)
-    image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
+    # conv_features, image_id_list = data_loader.load_conv_features(args.version, 'train', args.feature_layer)
+    # image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
 
     model_options = {
         'question_vocab_size' : len(qa_data['question_vocab']) + 1,
         'residual_channels' : args.residual_channels,
         'ans_vocab_size' : len(qa_data['answer_vocab']),
         'filter_width' : 3,
-        'img_dim' : 7,
+        'img_dim' : 14,
         'img_channels' : 2048,
         'dilations' : [ 1, 2, 4, 8, 16,
                         1, 2, 4, 8, 16,
                         1, 2, 4, 8, 16
                         ],
         'text_model' : 'lstm',
-        'dropout_keep_prob' : 0.7
+        'dropout_keep_prob' : 0.8,
+        'max_question_length' : qa_data['max_question_length']
     }
     
     print "MODEL OPTIONS"
@@ -88,132 +90,158 @@ def main():
     if args.resume_model:
         saver.restore(sess, args.resume_model)
 
+    training_buckets, total_buckets = make_data_buckets(qa_data, 'train')
+    validation_buckets, val_total_buckets = make_data_buckets(qa_data, 'val')
     step = 0
     training_log = []
     for epoch in xrange(args.epochs):
-        batch_no = 0
-
-        while ((batch_no + 1)*args.batch_size) < len(qa_data['training']):
-            start = time.clock()
-            question, answer, image_features, image_ids = get_batch(
-                batch_no, args.batch_size, qa_data, 
-                conv_features, image_id_map, 'train', model_options
+        for bucket in range(total_buckets):
+            print "loading conv feats"
+            conv_features, image_id_list = data_loader.load_conv_features('train', bucket, args.feature_layer)
+            print "conv feats loaded"
+            image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
+            bucket_qa_data = training_buckets[bucket]
+            batch_no = 0
+            while ((batch_no + 1)*args.batch_size) < len(bucket_qa_data):
+                start = time.clock()
+                question, answer, image_features, image_ids = get_batch(
+                    batch_no, args.batch_size, bucket_qa_data, 
+                    conv_features, image_id_map, 'train', model_options
+                    )
+                
+                _, loss_value = sess.run([train_op, model.loss],
+                    feed_dict={
+                        model.question: question,
+                        model.image_features: image_features,
+                        model.answer: answer
+                    }
                 )
-            
-            _, loss_value = sess.run([train_op, model.loss],
-                feed_dict={
-                    model.question: question,
-                    model.image_features: image_features,
-                    model.answer: answer
-                }
-            )
-            end = time.clock()
-            print "Time for batch of photos", end - start
-            print "Time for one epoch (mins)", len(qa_data['training'])/args.batch_size * (end - start)/60.0
-            batch_no += 1
-            step += 1
-            
-            print "LOSS", loss_value, batch_no, step, len(qa_data['training'])/args.batch_size, epoch
-            print "****"
-            if step % args.sample_every == 0:
-                try:
-                    shutil.rmtree('Data/samples')
-                except:
-                    pass
+                end = time.clock()
+                print "Time for batch of photos", end - start
+                print "Time for one epoch (mins)", len(qa_data['training'])/args.batch_size * (end - start)/60.0
+                batch_no += 1
+                step += 1
                 
-                os.makedirs('Data/samples')
+                print "LOSS", loss_value, batch_no,len(bucket_qa_data)/args.batch_size, step, bucket, epoch
+                print "****"
+                if step % args.sample_every == 0:
+                    try:
+                        shutil.rmtree('Data/samples')
+                    except:
+                        pass
+                    
+                    os.makedirs('Data/samples')
 
-                pred_answer, prob1, prob2 = sess.run([model.g_predictions, model.g_prob1, model.g_prob2],
-                    feed_dict = {
-                        model.g_question : question,
-                        model.g_image_features : image_features
-                    })
-                pred_ans_text = utils.answer_indices_to_text(pred_answer, ans_vocab_rev)
-                actual_ans_text = utils.answer_indices_to_text(answer, ans_vocab_rev)
-                sample_data = []
-                print "Actual vs Prediction"
-                for sample_i in range(len(pred_ans_text)):
-                    print actual_ans_text[sample_i], pred_ans_text[sample_i]
-                    question_text = utils.question_indices_to_text(question[sample_i], ques_vocab_rev)
-                    image_array = utils.image_array_from_image_id(image_ids[sample_i], 'train')
-                    blend1 = utils.get_blend_map(image_array, prob1[sample_i], overlap = True)
-                    blend2 = utils.get_blend_map(image_array, prob2[sample_i], overlap = True)
-                    sample_data.append({
-                        'question' : question_text,
-                        'actual_answer' : actual_ans_text[sample_i],
-                        'predicted_answer' : pred_ans_text[sample_i],
-                        'image_id' : image_ids[sample_i],
-                        'batch_index' : sample_i
+                    pred_answer, prob1, prob2 = sess.run([model.g_predictions, model.g_prob1, model.g_prob2],
+                        feed_dict = {
+                            model.g_question : question,
+                            model.g_image_features : image_features
                         })
-                    misc.imsave('Data/samples/{}_actual_image.jpg'.format(sample_i), image_array)
-                    misc.imsave('Data/samples/{}_blend1.jpg'.format(sample_i), blend1)
-                    misc.imsave('Data/samples/{}_blend2.jpg'.format(sample_i), blend2)
+                    pred_ans_text = utils.answer_indices_to_text(pred_answer, ans_vocab_rev)
+                    actual_ans_text = utils.answer_indices_to_text(answer, ans_vocab_rev)
+                    sample_data = []
+                    print "Actual vs Prediction"
+                    for sample_i in range(len(pred_ans_text)):
+                        print actual_ans_text[sample_i], pred_ans_text[sample_i]
+                        question_text = utils.question_indices_to_text(question[sample_i], ques_vocab_rev)
+                        image_array = utils.image_array_from_image_id(image_ids[sample_i], 'train')
+                        blend1 = utils.get_blend_map(image_array, prob1[sample_i], overlap = True)
+                        blend2 = utils.get_blend_map(image_array, prob2[sample_i], overlap = True)
+                        sample_data.append({
+                            'question' : question_text,
+                            'actual_answer' : actual_ans_text[sample_i],
+                            'predicted_answer' : pred_ans_text[sample_i],
+                            'image_id' : image_ids[sample_i],
+                            'batch_index' : sample_i
+                            })
+                        misc.imsave('Data/samples/{}_actual_image.jpg'.format(sample_i), image_array)
+                        misc.imsave('Data/samples/{}_blend1.jpg'.format(sample_i), blend1)
+                        misc.imsave('Data/samples/{}_blend2.jpg'.format(sample_i), blend2)
 
-                f = open('Data/samples/sample.json', 'wb')
-                f.write(json.dumps(sample_data))
-                f.close()
+                    f = open('Data/samples/sample.json', 'wb')
+                    f.write(json.dumps(sample_data))
+                    f.close()
 
-                shutil.make_archive('Data/samples', 'zip', 'Data/samples')
+                    shutil.make_archive('Data/samples', 'zip', 'Data/samples')
 
-            if step % args.evaluate_every == 0:
-                accuracy = evaluate_model(model, qa_data, args, model_options, sess)
-                print "ACCURACY>> ", accuracy, step, epoch
-                training_log.append({
-                    'step' : step,
-                    'epoch' : epoch,
-                    'accuracy' : accuracy,
-                    })
-                f = open(args.training_log_file, 'wb')
-                f.write(json.dumps(training_log))
-                f.close()
-                
-                save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
+                if step % args.evaluate_every == 0:
+                    accuracy = evaluate_model(model, qa_data, args, 
+                        model_options, validation_buckets, total_buckets, sess)
+                    print "ACCURACY>> ", accuracy, step, epoch
+                    training_log.append({
+                        'step' : step,
+                        'epoch' : epoch,
+                        'accuracy' : accuracy,
+                        })
+                    f = open(args.training_log_file, 'wb')
+                    f.write(json.dumps(training_log))
+                    f.close()
+                    
+                    save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
+                    break
         
-def evaluate_model(model, qa_data, args, model_options, sess):
-    conv_features, image_id_list = data_loader.load_conv_features(args.version, 'val', args.feature_layer)
-    image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
-    batch_no = 0
+def evaluate_model(model, qa_data, args, model_options, validation_buckets,  total_buckets, sess):
+    # conv_features, image_id_list = data_loader.load_conv_features(args.version, 'val', args.feature_layer)
+    # image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
+    
     actual_answers = []
     predicted_answers = []
-    while ((batch_no + 1)*args.batch_size) < len(qa_data['validation']):
-        question, answer, image_features, image_ids = get_batch(
-                batch_no, args.batch_size, qa_data, 
-                conv_features, image_id_map, 'val', model_options
-                )
-        [predicted] = sess.run([model.g_predictions], feed_dict = {
-            model.g_question : question,
-            model.g_image_features : image_features
-        })
-        batch_accuracy = np.sum(answer == predicted, dtype = "float32")/args.batch_size
-        print "Eavluating", batch_no, len(qa_data['validation'])/args.batch_size, batch_accuracy
-        actual_answers += list(answer)
-        predicted_answers += list(predicted)
+    for bucket in range(total_buckets):
+        print "loading conv feats"
+        conv_features, image_id_list = data_loader.load_conv_features('val', bucket, args.feature_layer)
+        print "conv feats loaded"
+        image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
+        bucket_qa_data = validation_buckets[bucket]
+        batch_no = 0
+        while ((batch_no + 1)*args.batch_size) < len(bucket_qa_data):
+            question, answer, image_features, image_ids = get_batch(
+                    batch_no, args.batch_size, bucket_qa_data, 
+                    conv_features, image_id_map, 'val', model_options
+                    )
+            [predicted] = sess.run([model.g_predictions], feed_dict = {
+                model.g_question : question,
+                model.g_image_features : image_features
+            })
+            batch_accuracy = np.sum(answer == predicted, dtype = "float32")/args.batch_size
+            print "Eavluating", batch_no, len(bucket_qa_data)/args.batch_size, batch_accuracy, bucket
+            actual_answers += list(answer)
+            predicted_answers += list(predicted)
 
-        batch_no += 1
-
+            batch_no += 1
+            if batch_no > 5:
+                break
+        break
     actual_answers = np.array(actual_answers)
     predicted_answers = np.array(predicted_answers)
     accuracy = np.sum(actual_answers == predicted_answers, dtype = "float32")/len(actual_answers)
 
     return accuracy
 
+def make_data_buckets(qa_data, split):
+    with open('Data/bucket_data_{}.p'.format(split)) as f:
+        bucket_data = pickle.load(f)
+        image_bucket_mapping = bucket_data['image_bucket_mapping']
+    
+    qa_buckets = [ [] for x in range(0, bucket_data['total_buckets']) ]
+    spilt_name = "training" if split == 'train' else 'validation'
+    for row in qa_data[spilt_name]:
+        row_bucket = image_bucket_mapping[ row['image_id']]
+        qa_buckets[row_bucket].append(row)
+    for i, bucket in enumerate(qa_buckets):
+        print "bucket", split, i, len(bucket)
 
+    return qa_buckets, bucket_data['total_buckets']
 
 def get_batch(batch_no, batch_size, 
-   qa_data, conv_features, image_id_map,
+   qa, conv_features, image_id_map,
    split, model_options):
-    if split == 'train':
-        qa = qa_data['training']
-    else:
-        qa = qa_data['validation']
-
     img_dim = model_options['img_dim']
     img_channels = model_options['img_channels']
 
     si = (batch_no * batch_size)%len(qa)
     ei = min(len(qa), si + batch_size)
     n = ei - si
-    max_question_length = qa_data['max_question_length']
+    max_question_length = model_options['max_question_length']
 
     sentence_batch = np.ndarray( (n, max_question_length), dtype = 'int32')
     answer_batch = np.zeros(n, dtype = 'int32' )
