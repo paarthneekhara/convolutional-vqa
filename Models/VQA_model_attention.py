@@ -20,14 +20,11 @@ class VQA_model:
         self.answer = tf.placeholder('int32', [None], name = "answer")
 
         image_features = tf.nn.l2_normalize(self.image_features, dim = 3)
-
-        
-
         encoded_question = self.encode_question(self.question, options['text_model'], train = True)
         context, prob1, prob2 = self.attend_image(image_features, encoded_question, options['dropout_keep_prob'])
 
         with tf.variable_scope("post_attention_fc"):
-            context = tf.nn.dropout(context, options['dropout_keep_prob'])
+            # context = tf.nn.dropout(context, options['dropout_keep_prob'])
             fc_1 = tf.nn.relu(ops.fully_connected(context, 1024, name = "fc_1"))
             fc_1 = tf.nn.dropout(fc_1, options['dropout_keep_prob'])
             logits = ops.fully_connected(fc_1, options['ans_vocab_size'], name = "logits")
@@ -46,7 +43,7 @@ class VQA_model:
             [None, options['img_dim'], options['img_dim'], options['img_channels']], 
             name = "image_features")
         image_features = tf.nn.l2_normalize(self.g_image_features, dim = 3)
-        encoded_question = self.encode_question(self.g_question, options['text_model'], train = True)
+        encoded_question = self.encode_question(self.g_question, options['text_model'], train = False)
         context, self.g_prob1, self.g_prob2 = self.attend_image(image_features, encoded_question, dropout_keep_prob = 1.0)
 
         with tf.variable_scope("post_attention_fc"):
@@ -98,9 +95,11 @@ class VQA_model:
             question, name = "question_embedding")
         question_embedding = tf.nn.tanh(question_embedding)
 
+        dropout_keep_prob = 1
         if train:
-            question_embedding = tf.nn.dropout(question_embedding, options['dropout_keep_prob'])
-
+            dropout_keep_prob = options['dropout_keep_prob']
+        
+        question_embedding = tf.nn.dropout(question_embedding, dropout_keep_prob)
         if model_type == "bytenet":
             curr_input = tf.nn.relu( ops.conv1d(
                 question_embedding, 2 * options['residual_channels'], 
@@ -114,6 +113,7 @@ class VQA_model:
 
         elif model_type == "lstm":
             cell = tf.nn.rnn_cell.LSTMCell(num_units=options['residual_channels'], state_is_tuple=True)
+            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob = dropout_keep_prob)
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * 2, state_is_tuple=True)
             outputs, last_states = tf.nn.dynamic_rnn(
                 cell=cell,

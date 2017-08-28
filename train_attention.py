@@ -71,7 +71,7 @@ def main():
                         1, 2, 4, 8, 16
                         ],
         'text_model' : 'lstm',
-        'dropout_keep_prob' : 0.8,
+        'dropout_keep_prob' : 0.5,
         'max_question_length' : qa_data['max_question_length']
     }
     
@@ -102,9 +102,9 @@ def main():
             image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
             bucket_qa_data = training_buckets[bucket]
             batch_no = 0
-            while ((batch_no + 1)*args.batch_size) < len(bucket_qa_data):
+            while (batch_no*args.batch_size) < len(bucket_qa_data):
                 start = time.clock()
-                question, answer, image_features, image_ids = get_batch(
+                question, answer, image_features, image_ids, _ = get_batch(
                     batch_no, args.batch_size, bucket_qa_data, 
                     conv_features, image_id_map, 'train', model_options
                     )
@@ -166,7 +166,7 @@ def main():
 
                 if step % args.evaluate_every == 0:
                     accuracy = evaluate_model(model, qa_data, args, 
-                        model_options, validation_buckets, total_buckets, sess)
+                        model_options, validation_buckets, val_total_buckets, sess)
                     print "ACCURACY>> ", accuracy, step, epoch
                     training_log.append({
                         'step' : step,
@@ -178,14 +178,11 @@ def main():
                     f.close()
                     
                     save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
-                    break
+                    
         
 def evaluate_model(model, qa_data, args, model_options, validation_buckets,  total_buckets, sess):
-    # conv_features, image_id_list = data_loader.load_conv_features(args.version, 'val', args.feature_layer)
-    # image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
-    
-    actual_answers = []
-    predicted_answers = []
+    prediction_check = []
+    ans_vocab_rev = qa_data['ans_vocab_rev'] 
     for bucket in range(total_buckets):
         print "loading conv feats"
         conv_features, image_id_list = data_loader.load_conv_features('val', bucket, args.feature_layer)
@@ -193,8 +190,8 @@ def evaluate_model(model, qa_data, args, model_options, validation_buckets,  tot
         image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
         bucket_qa_data = validation_buckets[bucket]
         batch_no = 0
-        while ((batch_no + 1)*args.batch_size) < len(bucket_qa_data):
-            question, answer, image_features, image_ids = get_batch(
+        while (batch_no*args.batch_size) < len(bucket_qa_data):
+            question, answer, image_features, image_ids, ans_freq_batch = get_batch(
                     batch_no, args.batch_size, bucket_qa_data, 
                     conv_features, image_id_map, 'val', model_options
                     )
@@ -202,19 +199,17 @@ def evaluate_model(model, qa_data, args, model_options, validation_buckets,  tot
                 model.g_question : question,
                 model.g_image_features : image_features
             })
-            batch_accuracy = np.sum(answer == predicted, dtype = "float32")/args.batch_size
-            print "Eavluating", batch_no, len(bucket_qa_data)/args.batch_size, batch_accuracy, bucket
-            actual_answers += list(answer)
-            predicted_answers += list(predicted)
-
+            pred_ans_text = utils.answer_indices_to_text(predicted, ans_vocab_rev)
+            for bi, pred_ans in enumerate(pred_ans_text):
+                if pred_ans in ans_freq_batch[bi] and ans_freq_batch[bi][pred_ans] >= 3:
+                    prediction_check.append(1.0)
+                else:
+                    prediction_check.append(0.0)
+                # print pred_ans, ans_freq_batch, prediction_check[-1]
+            accuracy = np.sum(prediction_check, dtype = "float32")/len(prediction_check)
+            print "Eavluating", batch_no, len(bucket_qa_data)/args.batch_size, accuracy, bucket
             batch_no += 1
-            if batch_no > 5:
-                break
-        break
-    actual_answers = np.array(actual_answers)
-    predicted_answers = np.array(predicted_answers)
-    accuracy = np.sum(actual_answers == predicted_answers, dtype = "float32")/len(actual_answers)
-
+            
     return accuracy
 
 def make_data_buckets(qa_data, split):
@@ -247,6 +242,8 @@ def get_batch(batch_no, batch_size,
     answer_batch = np.zeros(n, dtype = 'int32' )
     conv_batch = np.ndarray((n, img_dim, img_dim, img_channels), dtype = 'float32')
     image_ids = []
+    
+    ans_freq_batch = []
     count = 0
     for i in range(si, ei):
         sentence_batch[count] = qa[i]['question']
@@ -254,8 +251,11 @@ def get_batch(batch_no, batch_size,
         conv_index = image_id_map[ qa[i]['image_id'] ]
         conv_batch[count] = conv_features[conv_index]
         image_ids.append(qa[i]['image_id']  )
+        if 'all_answers_frequency' in qa[i]:
+            ans_freq_batch.append(qa[i]['all_answers_frequency'])
         count += 1
-    return sentence_batch, answer_batch, conv_batch, image_ids
+
+    return sentence_batch, answer_batch, conv_batch, image_ids, ans_freq_batch
 
 if __name__ == '__main__':
     main()

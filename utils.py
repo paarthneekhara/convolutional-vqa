@@ -64,3 +64,9 @@ def image_array_from_image_id(image_id, split):
     image_file = join('Data', '%s2014/COCO_%s2014_%.12d.jpg'%(split, split, image_id) )
     return load_image_array( image_file, 224)
 
+def main():
+    img = load_image_array('0.jpg', 224)
+    print img.dtype
+
+if __name__ == '__main__':
+    main()

@@ -4,7 +4,6 @@ from os.path import isfile, join
 import re
 import numpy as np
 import pprint
-import pickle
 import h5py
 
 def prepare_training_data(version = 2, data_dir = 'Data'):
@@ -14,16 +13,16 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
 
         v_q_json_file = join(data_dir, 'MultipleChoice_mscoco_val2014_questions.json')
         v_a_json_file = join(data_dir, 'mscoco_val2014_annotations.json')
-        qa_data_file = join(data_dir, 'qa_data_file1.pkl')
-        vocab_file = join(data_dir, 'vocab_file1.pkl')
+        qa_data_file = join(data_dir, 'qa_data_file1.json')
+        vocab_file = join(data_dir, 'vocab_file1.json')
     else:
         t_q_json_file = join(data_dir, 'v2_OpenEnded_mscoco_train2014_questions.json')
         t_a_json_file = join(data_dir, 'v2_mscoco_train2014_annotations.json')
 
         v_q_json_file = join(data_dir, 'v2_OpenEnded_mscoco_val2014_questions.json')
         v_a_json_file = join(data_dir, 'v2_mscoco_val2014_annotations.json')
-        qa_data_file = join(data_dir, 'qa_data_file2.pkl')
-        vocab_file = join(data_dir, 'vocab_file2.pkl')
+        qa_data_file = join(data_dir, 'qa_data_file2.json')
+        vocab_file = join(data_dir, 'vocab_file2.json')
 
     # IF ALREADY EXTRACTED
     # qa_data_file = join(data_dir, 'qa_data_file{}.pkl'.format(version))
@@ -59,6 +58,7 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
     answer_vocab = make_answer_vocab(answers)
     question_vocab, max_question_length = make_questions_vocab(questions, answers, answer_vocab)
     print "Max Question Length", max_question_length
+    print "Question Vocab Length", len(question_vocab)
     print len(question_vocab)
     word_regex = re.compile(r'\w+')
     training_data = []
@@ -67,7 +67,7 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
         if ans in answer_vocab:
             training_data.append({
                 'image_id' : t_answers['annotations'][i]['image_id'],
-                'question' : np.zeros(max_question_length, dtype='int32'),
+                'question' : [0 for i in range(max_question_length)],
                 'answer' : answer_vocab[ans]
                 })
             question_words = re.findall(word_regex, question['question'])
@@ -77,17 +77,28 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
 
     print "Training Data", len(training_data)
     val_data = []
+    
     for i,question in enumerate( v_questions['questions']):
         ans = v_answers['annotations'][i]['multiple_choice_answer']
-        if ans in answer_vocab:
-            val_data.append({
-                'image_id' : v_answers['annotations'][i]['image_id'],
-                'question' : np.zeros(max_question_length, dtype='int32'),
-                'answer' : answer_vocab[ans]
-                })
-            question_words = re.findall(word_regex, question['question'])
-            for i in range(0, len(question_words)):
-                val_data[-1]['question'][i] = question_vocab[ question_words[i] ]
+        all_answers = [ ans['answer'] for ans in v_answers['annotations'][i]['answers'] ]
+        
+        ans_freq = {}
+        for ans in all_answers:
+            if ans in ans_freq:
+                ans_freq[ans] += 1
+            else:
+                ans_freq[ans] = 1
+
+        most_frequent_ans = answer_vocab[ans] if ans in answer_vocab else answer_vocab['UNK']
+        val_data.append({
+            'image_id' : v_answers['annotations'][i]['image_id'],
+            'question' : [0 for i in range(max_question_length)],
+            'answer' : most_frequent_ans,
+            'all_answers_frequency' : ans_freq
+            })
+        question_words = re.findall(word_regex, question['question'])
+        for i in range(0, len(question_words)):
+            val_data[-1]['question'][i] = question_vocab[ question_words[i] ]
 
     print "Validation Data", len(val_data)
 
@@ -100,8 +111,9 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
     }
 
     print "Saving qa_data"
+    
     with open(qa_data_file, 'wb') as f:
-        pickle.dump(data, f)
+        f.write(json.dumps(data))
 
     with open(vocab_file, 'wb') as f:
         vocab_data = {
@@ -109,21 +121,21 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
             'question_vocab' : data['question_vocab'],
             'max_question_length' : data['max_question_length']
         }
-        pickle.dump(vocab_data, f)
+        f.write(json.dumps(vocab_data))
 
     return data
     
 def load_questions_answers(version = 2, data_dir = 'Data'):
-    qa_data_file = join(data_dir, 'qa_data_file{}.pkl'.format(version))
+    qa_data_file = join(data_dir, 'qa_data_file{}.json'.format(version))
     
     if isfile(qa_data_file):
         with open(qa_data_file) as f:
-            data = pickle.load(f)
+            data = json.loads(f.read())
             return data
 
 def get_question_answer_vocab(version = 2, data_dir = 'Data'):
     vocab_file = join(data_dir, 'vocab_file{}.pkl'.format(version))
-    vocab_data = pickle.load(open(vocab_file))
+    vocab_data = json.loads(open(vocab_file).read())
     return vocab_data
 
 def make_answer_vocab(answers):
@@ -156,16 +168,14 @@ def make_questions_vocab(questions, answers, answer_vocab):
 
     max_question_length = 0
     for i,question in enumerate(questions):
-        ans = answers[i]['multiple_choice_answer']
         count = 0
-        if ans in answer_vocab:
-            question_words = re.findall(word_regex, question['question'])
-            for qw in question_words:
-                if qw in question_frequency:
-                    question_frequency[qw] += 1
-                else:
-                    question_frequency[qw] = 1
-                count += 1
+        question_words = re.findall(word_regex, question['question'])
+        for qw in question_words:
+            if qw in question_frequency:
+                question_frequency[qw] += 1
+            else:
+                question_frequency[qw] = 1
+            count += 1
         if count > max_question_length:
             max_question_length = count
 
