@@ -10,16 +10,9 @@ def create_resnet_model(img_dim):
     resize_size = img_dim
     # mean = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32, shape=[1, 1, 1, 3], name='img_mean')
     # check = images-mean
-    processed_images_list = []
-    i = tf.constant(0)
-    while_condition = lambda i: tf.less(i, tf.shape(images)[0])
-    def body(i):
-        processed_image = cnn_preprocessing.preprocess_for_eval( images[i], img_dim, img_dim, resize_size)
-        processed_images_list.append( processed_image )
-        return [tf.add(i, 1)]
-    r = tf.while_loop(while_condition, body, [i])
-    
-    processed_images = tf.stack(processed_images_list)
+    preprocess_map_fn = lambda x : cnn_preprocessing.preprocess_for_eval( x, img_dim, img_dim, resize_size)
+    processed_images = tf.map_fn( preprocess_map_fn, images )
+    # processed_images = tf.stack(processed_images_list)
     
     with slim.arg_scope(resnet_utils.resnet_arg_scope()):
         probs, endpoints = resnet_v2.resnet_v2_152(processed_images, num_classes=1001)
@@ -49,8 +42,8 @@ def main():
             img_new[:,:,2] = img
             img = img_new
 
-    img_resized = misc.imresize(img, (img_dim, img_dim))
-    return img_resized
+        img_resized = misc.imresize(img, (img_dim, img_dim))
+        return img_resized
     res = create_resnet_model(224)
     sess = res['session']
     print "1", load_image_array('0.jpg', 224)
