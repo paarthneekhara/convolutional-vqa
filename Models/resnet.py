@@ -3,19 +3,21 @@ from tensorflow.contrib.slim.nets import resnet_v2, resnet_utils
 import tensorflow as tf
 import cnn_preprocessing
 from scipy import misc
+import json
+import numpy as np
+import labels
+
+
 
 def create_resnet_model(img_dim):
+    pre_image = tf.placeholder(tf.float32, [None, None, 3])
+    processed_image = cnn_preprocessing.preprocess_for_eval(pre_image/255.0, img_dim, img_dim)
+
     images = tf.placeholder(tf.float32, [None, img_dim, img_dim, 3])
-    # resize_size = int((1.0 * img_dim)/224.0 * 256)
-    resize_size = img_dim
     # mean = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32, shape=[1, 1, 1, 3], name='img_mean')
-    # check = images-mean
-    preprocess_map_fn = lambda x : cnn_preprocessing.preprocess_for_eval( x, img_dim, img_dim, resize_size)
-    processed_images = tf.map_fn( preprocess_map_fn, images )
-    # processed_images = tf.stack(processed_images_list)
-    
+    # processed_images = images - mean
     with slim.arg_scope(resnet_utils.resnet_arg_scope()):
-        probs, endpoints = resnet_v2.resnet_v2_152(processed_images, num_classes=1001)
+        probs, endpoints = resnet_v2.resnet_v2_152(images, num_classes=1001, is_training = False)
         print endpoints['resnet_v2_152/block4']
 
     init_fn = slim.assign_from_checkpoint_fn(
@@ -29,7 +31,9 @@ def create_resnet_model(img_dim):
         'images_placeholder' : images,
         'block4' : endpoints['resnet_v2_152/block4'],
         'session' : sess,
-        'check_images' : processed_images
+        'processed_image' : processed_image,
+        'pre_image' : pre_image,
+        'probs' : probs
     }
 
 def main():
@@ -41,20 +45,31 @@ def main():
             img_new[:,:,1] = img
             img_new[:,:,2] = img
             img = img_new
-
+        if not img_dim:
+            return img
         img_resized = misc.imresize(img, (img_dim, img_dim))
         return img_resized
-    res = create_resnet_model(224)
+    res = create_resnet_model(448)
     sess = res['session']
-    print "1", load_image_array('0.jpg', 224)
-    check = sess.run(res['check_images'], feed_dict = {
-        res['images_placeholder'] : [load_image_array('0.jpg', 224)]
+    new_image = sess.run(res['processed_image'], feed_dict = {
+        res['pre_image'] : load_image_array('0.jpg', img_dim = None)
         })
-    check2 = sess.run(res['check_images'], feed_dict = {
-        res['images_placeholder'] : [load_image_array('0.jpg', 224)]
-        })
+    # print "1", load_image_array('0.jpg', 224)
+    check = sess.run(res['probs'], feed_dict = {
+        res['images_placeholder'] : [new_image]
+    })
+    # print labels.label_names[np.argmax(check)], np.max(check)
+    
+    
+    check = check[0,0,0]
+    print "shape", check.shape
+    preds = (np.argsort(check)[::-1])[0:5]
+    print preds
+    for p in preds:
+        print labels.label_names[p-1]
+        # print labels.label_names[np.argmax(check)], np.max(check)
     print "2", check
-    print "3", check2
+    # print "3", check2
 
 if __name__ == '__main__':
     main()

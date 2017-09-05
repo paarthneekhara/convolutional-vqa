@@ -63,15 +63,18 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
     word_regex = re.compile(r'\w+')
     training_data = []
     for i,question in enumerate( t_questions['questions']):
-        ans = t_answers['annotations'][i]['multiple_choice_answer']
+        best_ans = t_answers['annotations'][i]['multiple_choice_answer']
+        all_answers = [ ans['answer'] for ans in t_answers['annotations'][i]['answers'] ]
+        all_answers_indices = [ answer_vocab[ans] if ans in answer_vocab else answer_vocab['UNK'] for ans in  all_answers]
         if ans in answer_vocab:
             training_data.append({
                 'image_id' : t_answers['annotations'][i]['image_id'],
                 'question' : [0 for i in range(max_question_length)],
-                'answer' : answer_vocab[ans]
+                'answer' : best_ans,
+                'all_answers' : all_answers_indices
                 })
             question_words = re.findall(word_regex, question['question'])
-
+            question_words = [qw.lower() for qw in question_words]
             for i in range(0, len(question_words)):
                 training_data[-1]['question'][i] = question_vocab[ question_words[i] ]
 
@@ -81,7 +84,7 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
     for i,question in enumerate( v_questions['questions']):
         ans = v_answers['annotations'][i]['multiple_choice_answer']
         all_answers = [ ans['answer'] for ans in v_answers['annotations'][i]['answers'] ]
-        
+        all_answers_indices = [ answer_vocab[ans] if ans in answer_vocab else answer_vocab['UNK'] for ans in  all_answers]
         ans_freq = {}
         for ans in all_answers:
             if ans in ans_freq:
@@ -94,9 +97,11 @@ def prepare_training_data(version = 2, data_dir = 'Data'):
             'image_id' : v_answers['annotations'][i]['image_id'],
             'question' : [0 for i in range(max_question_length)],
             'answer' : most_frequent_ans,
-            'all_answers_frequency' : ans_freq
+            'all_answers_frequency' : ans_freq,
+            'all_answers' : all_answers_indices
             })
         question_words = re.findall(word_regex, question['question'])
+        question_words = [qw.lower() for qw in question_words]
         for i in range(0, len(question_words)):
             val_data[-1]['question'][i] = question_vocab[ question_words[i] ]
 
@@ -170,6 +175,7 @@ def make_questions_vocab(questions, answers, answer_vocab):
     for i,question in enumerate(questions):
         count = 0
         question_words = re.findall(word_regex, question['question'])
+        question_words = [qw.lower() for qw in question_words]
         for qw in question_words:
             if qw in question_frequency:
                 question_frequency[qw] += 1
@@ -201,9 +207,10 @@ def make_questions_vocab(questions, answers, answer_vocab):
 
 def load_conv_features(split = 'train', bucket_no = 0, feature_layer = 'block4'):
     conv_file = "Data/conv_features_{}/conv_features_{}_bucket_{}.h5".format(split, feature_layer, bucket_no)
-    with h5py.File( conv_file,'r') as hf:
-        conv_features = np.array(hf.get('conv_features'))
-
+    hf = h5py.File( conv_file,'r')
+    conv_features = hf['conv_features']
+    print "Shape", conv_features.shape
+    # print conv_features[1,:,:,:]
     image_id_file = "Data/conv_features_{}/image_id_list_bucket_{}.h5".format(split, bucket_no)
     with h5py.File( image_id_file,'r') as hf:
         image_id_list = np.array(hf.get('image_id_list'))

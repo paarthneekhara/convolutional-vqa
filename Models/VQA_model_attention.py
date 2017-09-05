@@ -17,20 +17,27 @@ class VQA_model:
         self.image_features = tf.placeholder('float32', 
             [None, options['img_dim'], options['img_dim'], options['img_channels']], 
             name = "image_features")
-        self.answer = tf.placeholder('int32', [None], name = "answer")
+        self.answers = tf.placeholder('int32', [None, options['num_answers']], name = "answer")
 
+        # image_features = self.image_features
         image_features = tf.nn.l2_normalize(self.image_features, dim = 3)
+
         encoded_question = self.encode_question(self.question, options['text_model'], train = True)
         context, prob1, prob2 = self.attend_image(image_features, encoded_question, options['dropout_keep_prob'])
 
         with tf.variable_scope("post_attention_fc"):
-            # context = tf.nn.dropout(context, options['dropout_keep_prob'])
+            context = tf.nn.dropout(context, 0.8)
+            context = tf.nn.tanh(context)
             fc_1 = tf.nn.relu(ops.fully_connected(context, 1024, name = "fc_1"))
             fc_1 = tf.nn.dropout(fc_1, options['dropout_keep_prob'])
             logits = ops.fully_connected(fc_1, options['ans_vocab_size'], name = "logits")
 
-            loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels = self.answer, logits = logits)
+            loss = 0
+            for i in range(options['num_answers']):
+                loss += tf.nn.sparse_softmax_cross_entropy_with_logits(
+                    labels = self.answers[:,i], logits = logits)
+            loss /= options['num_answers']
+
             self.loss = tf.reduce_mean(loss)
             self.predictions = tf.argmax(logits,1)
 
@@ -42,11 +49,14 @@ class VQA_model:
         self.g_image_features = tf.placeholder('float32', 
             [None, options['img_dim'], options['img_dim'], options['img_channels']], 
             name = "image_features")
+        # image_features = self.g_image_features
         image_features = tf.nn.l2_normalize(self.g_image_features, dim = 3)
+
         encoded_question = self.encode_question(self.g_question, options['text_model'], train = False)
         context, self.g_prob1, self.g_prob2 = self.attend_image(image_features, encoded_question, dropout_keep_prob = 1.0)
 
         with tf.variable_scope("post_attention_fc"):
+            context = tf.nn.tanh(context)
             fc_1 = tf.nn.relu(ops.fully_connected(context, 1024, name = "fc_1"))
             logits = ops.fully_connected(fc_1, options['ans_vocab_size'], name = "logits")
             self.g_predictions = tf.argmax(logits,1)
@@ -114,7 +124,7 @@ class VQA_model:
         elif model_type == "lstm":
             cell = tf.nn.rnn_cell.LSTMCell(num_units=options['residual_channels'], state_is_tuple=True)
             cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob = dropout_keep_prob)
-            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * 2, state_is_tuple=True)
+            # cell = tf.nn.rnn_cell.MultiRNNCell([cell] * 2, state_is_tuple=True)
             outputs, last_states = tf.nn.dynamic_rnn(
                 cell=cell,
                 dtype=tf.float32,

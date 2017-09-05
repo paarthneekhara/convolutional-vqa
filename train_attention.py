@@ -71,8 +71,9 @@ def main():
                         1, 2, 4, 8, 16
                         ],
         'text_model' : 'lstm',
-        'dropout_keep_prob' : 0.5,
-        'max_question_length' : qa_data['max_question_length']
+        'dropout_keep_prob' : 0.6,
+        'max_question_length' : qa_data['max_question_length'],
+        'num_answers' : 10
     }
     
     print "MODEL OPTIONS"
@@ -97,8 +98,12 @@ def main():
     for epoch in xrange(args.epochs):
         for bucket in range(total_buckets):
             print "loading conv feats"
+            conv_features = None
+            image_id_list = None
             conv_features, image_id_list = data_loader.load_conv_features('train', bucket, args.feature_layer)
             print "conv feats loaded"
+            # print conv_features[1,:,:,:]
+            # print "check"
             image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
             bucket_qa_data = training_buckets[bucket]
             batch_no = 0
@@ -113,7 +118,7 @@ def main():
                     feed_dict={
                         model.question: question,
                         model.image_features: image_features,
-                        model.answer: answer
+                        model.answers: answer
                     }
                 )
                 end = time.clock()
@@ -138,7 +143,8 @@ def main():
                             model.g_image_features : image_features
                         })
                     pred_ans_text = utils.answer_indices_to_text(pred_answer, ans_vocab_rev)
-                    actual_ans_text = utils.answer_indices_to_text(answer, ans_vocab_rev)
+                    # just a sample
+                    actual_ans_text = utils.answer_indices_to_text(answer[:,0], ans_vocab_rev)
                     sample_data = []
                     print "Actual vs Prediction"
                     for sample_i in range(len(pred_ans_text)):
@@ -185,6 +191,8 @@ def evaluate_model(model, qa_data, args, model_options, validation_buckets,  tot
     ans_vocab_rev = qa_data['ans_vocab_rev'] 
     for bucket in range(total_buckets):
         print "loading conv feats"
+        conv_features = None
+        image_id_list = None
         conv_features, image_id_list = data_loader.load_conv_features('val', bucket, args.feature_layer)
         print "conv feats loaded"
         image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
@@ -201,15 +209,19 @@ def evaluate_model(model, qa_data, args, model_options, validation_buckets,  tot
             })
             pred_ans_text = utils.answer_indices_to_text(predicted, ans_vocab_rev)
             for bi, pred_ans in enumerate(pred_ans_text):
-                if pred_ans in ans_freq_batch[bi] and ans_freq_batch[bi][pred_ans] >= 3:
-                    prediction_check.append(1.0)
+                if pred_ans in ans_freq_batch[bi]:# and ans_freq_batch[bi][pred_ans] >= 3:
+                    prediction_check.append(min(1.0, ans_freq_batch[bi][pred_ans]/3.0))
+                    # prediction_check.append(1.0)
                 else:
                     prediction_check.append(0.0)
                 # print pred_ans, ans_freq_batch, prediction_check[-1]
             accuracy = np.sum(prediction_check, dtype = "float32")/len(prediction_check)
             print "Eavluating", batch_no, len(bucket_qa_data)/args.batch_size, accuracy, bucket
             batch_no += 1
-            
+    
+    conv_features = None
+    image_id_list = None      
+    
     return accuracy
 
 def make_data_buckets(qa_data, split):
@@ -239,7 +251,7 @@ def get_batch(batch_no, batch_size,
     max_question_length = model_options['max_question_length']
 
     sentence_batch = np.ndarray( (n, max_question_length), dtype = 'int32')
-    answer_batch = np.zeros(n, dtype = 'int32' )
+    answer_batch = np.zeros((n, model_options['num_answers']), dtype = 'int32' )
     conv_batch = np.ndarray((n, img_dim, img_dim, img_channels), dtype = 'float32')
     image_ids = []
     
@@ -247,9 +259,11 @@ def get_batch(batch_no, batch_size,
     count = 0
     for i in range(si, ei):
         sentence_batch[count] = qa[i]['question']
-        answer_batch[count] = qa[i]['answer']
+        answer_batch[count] = qa[i]['all_answers']
         conv_index = image_id_map[ qa[i]['image_id'] ]
-        conv_batch[count] = conv_features[conv_index]
+        # print conv_features
+        # print conv_index
+        conv_batch[count] = conv_features[conv_index,:,:,:]
         image_ids.append(qa[i]['image_id']  )
         if 'all_answers_frequency' in qa[i]:
             ans_freq_batch.append(qa[i]['all_answers_frequency'])

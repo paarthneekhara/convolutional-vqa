@@ -18,3 +18,4 @@ connect.sh
 Models/test.py
 train_attention_old.py
 *0.jpg
+*cat.jpg
