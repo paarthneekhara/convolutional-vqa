@@ -1,3 +1,4 @@
+# ONLY FOR TESTING
 class_names = '''tench, Tinca tinca
 goldfish, Carassius auratus
 great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias

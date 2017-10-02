@@ -38,15 +38,14 @@ def main():
     image_ids = {image['id'] : 1 for image in images}
     image_id_list = [img_id for img_id in image_ids]
     print "Total Images", len(image_id_list)
-    print "initialising features array"
-    
     
     try:
         shutil.rmtree('Data/conv_features_{}_{}'.format(args.split, args.model))
     except:
         pass
+    
     os.makedirs('Data/conv_features_{}_{}'.format(args.split, args.model))
-
+    
     if args.model=="vgg":
         cnn_model = vgg16.create_vgg_model(448, only_conv = args.feature_layer != 'fc7')
     else:
@@ -65,6 +64,7 @@ def main():
         conv_features = None
         feature_shape =  (len(image_id_list), 4096)
         img_dim = 224
+    
     else:
         if args.model=="vgg":
             conv_features = None
@@ -100,11 +100,9 @@ def main():
                 image_array = sess.run(cnn_model['processed_image'], feed_dict = {
                     cnn_model['pre_image'] : utils.load_image_array(image_file, img_dim = None)
                     })
-                print "check"
             else:
                 image_array = utils.load_image_array(image_file, img_dim = img_dim)
-            # print "SHAPE", image_array.shape
-            # print sdhfjksd
+            
             image_batch[i,:,:,:] = image_array
             idx += 1
             count += 1

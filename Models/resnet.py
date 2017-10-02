@@ -7,8 +7,8 @@ import json
 import numpy as np
 import labels
 
-
-
+# download model from http://download.tensorflow.org/models/resnet_v2_152_2017_04_14.tar.gz
+# list of other models https://github.com/tensorflow/models/tree/70b894bdf74c4deedafbbdd70c2454162837d5d2/slim
 def create_resnet_model(img_dim):
     pre_image = tf.placeholder(tf.float32, [None, None, 3])
     processed_image = cnn_preprocessing.preprocess_for_eval(pre_image/255.0, img_dim, img_dim)
