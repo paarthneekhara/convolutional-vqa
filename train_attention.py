@@ -45,7 +45,7 @@ def main():
     parser.add_argument('--cnn_model', type=str, default="resnet",
                        help='CNN model')
 
-    evaluation_steps = [3000, 6000, 12000, 18000, 25000, 30000, 35000, 50000]
+    evaluation_steps = [6000, 12000, 18000, 25000, 30000, 35000, 50000]
     args = parser.parse_args()
     
     print "Reading QA DATA", args.version
@@ -72,10 +72,9 @@ def main():
         'img_dim' : 14,
         'img_channels' : 2048,
         'dilations' : [ 1, 2, 4, 8, 16,
-                        1, 2, 4, 8, 16,
                         1, 2, 4, 8, 16
-                        ],
-        'text_model' : 'lstm',
+                       ],
+        'text_model' : 'bytenet',
         'dropout_keep_prob' : 0.6,
         'max_question_length' : qa_data['max_question_length'],
         'num_answers' : 10
