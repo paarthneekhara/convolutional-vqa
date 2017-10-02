@@ -1,6 +1,6 @@
 import tensorflow as tf
 from Models import VQA_model_attention
-import data_loader
+import data_loader_v2 as data_loader
 import argparse
 import numpy as np
 from os.path import isfile, join
@@ -26,7 +26,7 @@ def main():
                        help='Batch Size')
     parser.add_argument('--learning_rate', type=float, default=0.001,
                        help='Batch Size')
-    parser.add_argument('--epochs', type=int, default=20,
+    parser.add_argument('--epochs', type=int, default=25,
                        help='Expochs')
     parser.add_argument('--version', type=int, default=1,
                        help='VQA data version')
@@ -42,27 +42,32 @@ def main():
                        help='Log file for accuracy')
     parser.add_argument('--feature_layer', type=str, default="block4",
                        help='CONV FEATURE LAYER, fc7, pool5 or block4')
+    parser.add_argument('--cnn_model', type=str, default="resnet",
+                       help='CNN model')
 
+    evaluation_steps = [3000, 6000, 12000, 18000, 25000, 30000, 35000, 50000]
     args = parser.parse_args()
     
     print "Reading QA DATA", args.version
     qa_data = data_loader.load_questions_answers(args.version, args.data_dir)
     shuffle(qa_data['training'])
     shuffle(qa_data['validation'])
-    qa_data['ans_vocab_rev'] = { qa_data['answer_vocab'][ans] : ans for ans in qa_data['answer_vocab']}
-    qa_data['ques_vocab_rev'] = { qa_data['question_vocab'][qw] : qw for qw in qa_data['question_vocab']}
-    qa_data['ques_vocab_rev'][0] = ""
-    ans_vocab_rev = qa_data['ans_vocab_rev']
-    ques_vocab_rev = qa_data['ques_vocab_rev']
+    
+    ans_vocab_rev = qa_data['index_to_ans']
+    ques_vocab_rev = qa_data['index_to_qw']
 
     print "Reading conv features"
-    # conv_features, image_id_list = data_loader.load_conv_features(args.version, 'train', args.feature_layer)
+    conv_features, image_id_list = data_loader.load_conv_features('train', args.cnn_model, args.feature_layer)
     # image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
+    image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
+    
+    conv_features_val, image_id_list_val = data_loader.load_conv_features('val', args.cnn_model, args.feature_layer)
+    image_id_map_val = {image_id_list_val[i] : i for i in xrange(len(image_id_list_val))}
 
     model_options = {
-        'question_vocab_size' : len(qa_data['question_vocab']) + 1,
+        'question_vocab_size' : len(qa_data['index_to_qw']),
         'residual_channels' : args.residual_channels,
-        'ans_vocab_size' : len(qa_data['answer_vocab']),
+        'ans_vocab_size' : len(qa_data['index_to_ans']),
         'filter_width' : 3,
         'img_dim' : 14,
         'img_channels' : 2048,
@@ -91,153 +96,120 @@ def main():
     if args.resume_model:
         saver.restore(sess, args.resume_model)
 
-    training_buckets, total_buckets = make_data_buckets(qa_data, 'train')
-    validation_buckets, val_total_buckets = make_data_buckets(qa_data, 'val')
+    
     step = 0
     training_log = []
     for epoch in xrange(args.epochs):
-        for bucket in range(total_buckets):
-            print "loading conv feats"
-            conv_features = None
-            image_id_list = None
-            conv_features, image_id_list = data_loader.load_conv_features('train', bucket, args.feature_layer)
-            print "conv feats loaded"
-            # print conv_features[1,:,:,:]
-            # print "check"
-            image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
-            bucket_qa_data = training_buckets[bucket]
-            batch_no = 0
-            while (batch_no*args.batch_size) < len(bucket_qa_data):
-                start = time.clock()
-                question, answer, image_features, image_ids, _ = get_batch(
-                    batch_no, args.batch_size, bucket_qa_data, 
-                    conv_features, image_id_map, 'train', model_options
-                    )
-                
-                _, loss_value = sess.run([train_op, model.loss],
-                    feed_dict={
-                        model.question: question,
-                        model.image_features: image_features,
-                        model.answers: answer
-                    }
+        batch_no = 0
+        while (batch_no*args.batch_size) < len(qa_data['training']):
+            start = time.clock()
+            question, answer, image_features, image_ids, _ = get_batch(
+                batch_no, args.batch_size, qa_data['training'], 
+                conv_features, image_id_map, 'train', model_options
                 )
-                end = time.clock()
-                print "Time for batch of photos", end - start
-                print "Time for one epoch (mins)", len(qa_data['training'])/args.batch_size * (end - start)/60.0
-                batch_no += 1
-                step += 1
+            
+            _, loss_value = sess.run([train_op, model.loss],
+                feed_dict={
+                    model.question: question,
+                    model.image_features: image_features,
+                    model.answers: answer
+                }
+            )
+            end = time.clock()
+            print "Time for batch of photos", end - start
+            print "Time for one epoch (mins)", len(qa_data['training'])/args.batch_size * (end - start)/60.0
+            batch_no += 1
+            step += 1
+            
+            print "LOSS", loss_value, batch_no,len(qa_data)/args.batch_size, step, epoch
+            print "****"
+            if step % args.sample_every == 0:
+                try:
+                    shutil.rmtree('Data/samples')
+                except:
+                    pass
                 
-                print "LOSS", loss_value, batch_no,len(bucket_qa_data)/args.batch_size, step, bucket, epoch
-                print "****"
-                if step % args.sample_every == 0:
-                    try:
-                        shutil.rmtree('Data/samples')
-                    except:
-                        pass
-                    
-                    os.makedirs('Data/samples')
+                os.makedirs('Data/samples')
 
-                    pred_answer, prob1, prob2 = sess.run([model.g_predictions, model.g_prob1, model.g_prob2],
-                        feed_dict = {
-                            model.g_question : question,
-                            model.g_image_features : image_features
+                pred_answer, prob1, prob2 = sess.run([model.g_predictions, model.g_prob1, model.g_prob2],
+                    feed_dict = {
+                        model.g_question : question,
+                        model.g_image_features : image_features
+                    })
+                pred_ans_text = utils.answer_indices_to_text(pred_answer, ans_vocab_rev)
+                # just a sample
+                actual_ans_text = utils.answer_indices_to_text(answer[:,0], ans_vocab_rev)
+                sample_data = []
+                print "Actual vs Prediction"
+                for sample_i in range(len(pred_ans_text)):
+                    print actual_ans_text[sample_i], pred_ans_text[sample_i]
+                    question_text = utils.question_indices_to_text(question[sample_i], ques_vocab_rev)
+                    image_array = utils.image_array_from_image_id(image_ids[sample_i], 'train')
+                    blend1 = utils.get_blend_map(image_array, prob1[sample_i], overlap = True)
+                    blend2 = utils.get_blend_map(image_array, prob2[sample_i], overlap = True)
+                    sample_data.append({
+                        'question' : question_text,
+                        'actual_answer' : actual_ans_text[sample_i],
+                        'predicted_answer' : pred_ans_text[sample_i],
+                        'image_id' : image_ids[sample_i],
+                        'batch_index' : sample_i
                         })
-                    pred_ans_text = utils.answer_indices_to_text(pred_answer, ans_vocab_rev)
-                    # just a sample
-                    actual_ans_text = utils.answer_indices_to_text(answer[:,0], ans_vocab_rev)
-                    sample_data = []
-                    print "Actual vs Prediction"
-                    for sample_i in range(len(pred_ans_text)):
-                        print actual_ans_text[sample_i], pred_ans_text[sample_i]
-                        question_text = utils.question_indices_to_text(question[sample_i], ques_vocab_rev)
-                        image_array = utils.image_array_from_image_id(image_ids[sample_i], 'train')
-                        blend1 = utils.get_blend_map(image_array, prob1[sample_i], overlap = True)
-                        blend2 = utils.get_blend_map(image_array, prob2[sample_i], overlap = True)
-                        sample_data.append({
-                            'question' : question_text,
-                            'actual_answer' : actual_ans_text[sample_i],
-                            'predicted_answer' : pred_ans_text[sample_i],
-                            'image_id' : image_ids[sample_i],
-                            'batch_index' : sample_i
-                            })
-                        misc.imsave('Data/samples/{}_actual_image.jpg'.format(sample_i), image_array)
-                        misc.imsave('Data/samples/{}_blend1.jpg'.format(sample_i), blend1)
-                        misc.imsave('Data/samples/{}_blend2.jpg'.format(sample_i), blend2)
+                    misc.imsave('Data/samples/{}_actual_image.jpg'.format(sample_i), image_array)
+                    misc.imsave('Data/samples/{}_blend1.jpg'.format(sample_i), blend1)
+                    misc.imsave('Data/samples/{}_blend2.jpg'.format(sample_i), blend2)
 
-                    f = open('Data/samples/sample.json', 'wb')
-                    f.write(json.dumps(sample_data))
-                    f.close()
+                f = open('Data/samples/sample.json', 'wb')
+                f.write(json.dumps(sample_data))
+                f.close()
 
-                    shutil.make_archive('Data/samples', 'zip', 'Data/samples')
+                shutil.make_archive('Data/samples', 'zip', 'Data/samples')
 
-                if step % args.evaluate_every == 0:
-                    accuracy = evaluate_model(model, qa_data, args, 
-                        model_options, validation_buckets, val_total_buckets, sess)
-                    print "ACCURACY>> ", accuracy, step, epoch
-                    training_log.append({
-                        'step' : step,
-                        'epoch' : epoch,
-                        'accuracy' : accuracy,
-                        })
-                    f = open(args.training_log_file, 'wb')
-                    f.write(json.dumps(training_log))
-                    f.close()
-                    
-                    save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
+            if step in evaluation_steps:
+                accuracy = evaluate_model(model, qa_data, args, 
+                    model_options, sess, conv_features_val, image_id_map_val)
+                print "ACCURACY>> ", accuracy, step, epoch
+                training_log.append({
+                    'step' : step,
+                    'epoch' : epoch,
+                    'accuracy' : accuracy,
+                    })
+                f = open(args.training_log_file, 'wb')
+                f.write(json.dumps(training_log))
+                f.close()
+                
+                save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
                     
         
-def evaluate_model(model, qa_data, args, model_options, validation_buckets,  total_buckets, sess):
+def evaluate_model(model, qa_data, args, model_options, sess, conv_features, image_id_map):
     prediction_check = []
-    ans_vocab_rev = qa_data['ans_vocab_rev'] 
-    for bucket in range(total_buckets):
-        print "loading conv feats"
-        conv_features = None
-        image_id_list = None
-        conv_features, image_id_list = data_loader.load_conv_features('val', bucket, args.feature_layer)
-        print "conv feats loaded"
-        image_id_map = {image_id_list[i] : i for i in xrange(len(image_id_list))}
-        bucket_qa_data = validation_buckets[bucket]
-        batch_no = 0
-        while (batch_no*args.batch_size) < len(bucket_qa_data):
-            question, answer, image_features, image_ids, ans_freq_batch = get_batch(
-                    batch_no, args.batch_size, bucket_qa_data, 
-                    conv_features, image_id_map, 'val', model_options
-                    )
-            [predicted] = sess.run([model.g_predictions], feed_dict = {
-                model.g_question : question,
-                model.g_image_features : image_features
-            })
-            pred_ans_text = utils.answer_indices_to_text(predicted, ans_vocab_rev)
-            for bi, pred_ans in enumerate(pred_ans_text):
-                if pred_ans in ans_freq_batch[bi]:# and ans_freq_batch[bi][pred_ans] >= 3:
-                    prediction_check.append(min(1.0, ans_freq_batch[bi][pred_ans]/3.0))
-                    # prediction_check.append(1.0)
-                else:
-                    prediction_check.append(0.0)
-                # print pred_ans, ans_freq_batch, prediction_check[-1]
-            accuracy = np.sum(prediction_check, dtype = "float32")/len(prediction_check)
-            print "Eavluating", batch_no, len(bucket_qa_data)/args.batch_size, accuracy, bucket
-            batch_no += 1
+    ans_vocab_rev = qa_data['index_to_ans']  
     
-    conv_features = None
-    image_id_list = None      
+    print "loading conv feats"
     
+    batch_no = 0
+    while (batch_no*args.batch_size) < len(qa_data['validation']):
+        question, answer, image_features, image_ids, ans_freq_batch = get_batch(
+                batch_no, args.batch_size, qa_data['validation'], 
+                conv_features, image_id_map, 'val', model_options
+                )
+        [predicted] = sess.run([model.g_predictions], feed_dict = {
+            model.g_question : question,
+            model.g_image_features : image_features
+        })
+        pred_ans_text = utils.answer_indices_to_text(predicted, ans_vocab_rev)
+        for bi, pred_ans in enumerate(pred_ans_text):
+            if pred_ans in ans_freq_batch[bi]:# and ans_freq_batch[bi][pred_ans] >= 3:
+                prediction_check.append(min(1.0, ans_freq_batch[bi][pred_ans]/3.0))
+                # prediction_check.append(1.0)
+            else:
+                prediction_check.append(0.0)
+            # print pred_ans, ans_freq_batch, prediction_check[-1]
+        accuracy = np.sum(prediction_check, dtype = "float32")/len(prediction_check)
+        print "Eavluating", batch_no, len(qa_data)/args.batch_size, accuracy
+        batch_no += 1
+        
     return accuracy
 
-def make_data_buckets(qa_data, split):
-    with open('Data/bucket_data_{}.p'.format(split)) as f:
-        bucket_data = pickle.load(f)
-        image_bucket_mapping = bucket_data['image_bucket_mapping']
-    
-    qa_buckets = [ [] for x in range(0, bucket_data['total_buckets']) ]
-    spilt_name = "training" if split == 'train' else 'validation'
-    for row in qa_data[spilt_name]:
-        row_bucket = image_bucket_mapping[ row['image_id']]
-        qa_buckets[row_bucket].append(row)
-    for i, bucket in enumerate(qa_buckets):
-        print "bucket", split, i, len(bucket)
-
-    return qa_buckets, bucket_data['total_buckets']
 
 def get_batch(batch_no, batch_size, 
    qa, conv_features, image_id_map,
@@ -258,15 +230,12 @@ def get_batch(batch_no, batch_size,
     ans_freq_batch = []
     count = 0
     for i in range(si, ei):
-        sentence_batch[count] = qa[i]['question']
-        answer_batch[count] = qa[i]['all_answers']
+        sentence_batch[count] = qa[i]['question_indices']
+        answer_batch[count] = qa[i]['all_answers_indices']
         conv_index = image_id_map[ qa[i]['image_id'] ]
-        # print conv_features
-        # print conv_index
-        conv_batch[count] = conv_features[conv_index,:,:,:]
+        conv_batch[count] = np.reshape(conv_features[conv_index], [14, 14, 2048] )
         image_ids.append(qa[i]['image_id']  )
-        if 'all_answers_frequency' in qa[i]:
-            ans_freq_batch.append(qa[i]['all_answers_frequency'])
+        ans_freq_batch.append(qa[i]['ans_freq'])
         count += 1
 
     return sentence_batch, answer_batch, conv_batch, image_ids, ans_freq_batch

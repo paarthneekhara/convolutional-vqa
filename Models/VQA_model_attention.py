@@ -26,8 +26,8 @@ class VQA_model:
         context, prob1, prob2 = self.attend_image(image_features, encoded_question, options['dropout_keep_prob'])
 
         with tf.variable_scope("post_attention_fc"):
-            context = tf.nn.dropout(context, 0.8)
-            context = tf.nn.tanh(context)
+            # context = tf.nn.dropout(context, 0.8)
+            # context = tf.nn.tanh(context)
             fc_1 = tf.nn.relu(ops.fully_connected(context, 1024, name = "fc_1"))
             fc_1 = tf.nn.dropout(fc_1, options['dropout_keep_prob'])
             logits = ops.fully_connected(fc_1, options['ans_vocab_size'], name = "logits")
@@ -56,7 +56,7 @@ class VQA_model:
         context, self.g_prob1, self.g_prob2 = self.attend_image(image_features, encoded_question, dropout_keep_prob = 1.0)
 
         with tf.variable_scope("post_attention_fc"):
-            context = tf.nn.tanh(context)
+            # context = tf.nn.tanh(context)
             fc_1 = tf.nn.relu(ops.fully_connected(context, 1024, name = "fc_1"))
             logits = ops.fully_connected(fc_1, options['ans_vocab_size'], name = "logits")
             self.g_predictions = tf.argmax(logits,1)
@@ -109,7 +109,8 @@ class VQA_model:
         if train:
             dropout_keep_prob = options['dropout_keep_prob']
         
-        question_embedding = tf.nn.dropout(question_embedding, dropout_keep_prob)
+        # question_embedding = tf.nn.dropout(question_embedding, dropout_keep_prob)
+        
         if model_type == "bytenet":
             curr_input = tf.nn.relu( ops.conv1d(
                 question_embedding, 2 * options['residual_channels'], 

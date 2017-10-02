@@ -72,7 +72,7 @@ def main():
             img_dim = 448
         else:
             conv_features = None
-            feature_shape =  (len(image_id_list), 14, 14, 2048)
+            feature_shape =  (len(image_id_list), 14*14*2048)
             img_dim = 448
             print "it's done!!!"
 
@@ -100,6 +100,7 @@ def main():
                 image_array = sess.run(cnn_model['processed_image'], feed_dict = {
                     cnn_model['pre_image'] : utils.load_image_array(image_file, img_dim = None)
                     })
+                print "check"
             else:
                 image_array = utils.load_image_array(image_file, img_dim = img_dim)
             # print "SHAPE", image_array.shape
@@ -111,6 +112,7 @@ def main():
         
         feed_dict  = { images : image_batch[0:count,:,:,:] }
         conv_features_batch = sess.run(image_feature_layer, feed_dict = feed_dict)
+        conv_features_batch = np.reshape(conv_features_batch, ( conv_features_batch.shape[0], -1 ))
         hdf5_data[(idx - count):idx] = conv_features_batch[0:count]
 
         end = time.clock()
