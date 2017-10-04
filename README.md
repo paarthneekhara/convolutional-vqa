@@ -1,7 +1,7 @@
 # Fully Convolutional Visual Question Answering
 This is an attention based model for VQA using a dilated convolutional neural network for modelling the question and a resnet for visual features. The text model is based on the recent convolutional architecture ByteNet. Stacked attention distributions over the images are then used to compute weighted image features, which are concatenated with the text features to predict the answer. Following is the rough diagram for the described model.
 
-![Model architecture](http://i.imgur.com/IE6Zq6o.jpg)
+![Model architecture](https://i.imgur.com/HZhC2DE.jpg)
 
 ## Requirements
 - Python 2.7.6
@@ -40,7 +40,7 @@ Unzip the downloaded files and create the directory ```Data/CNNModels```. Downlo
   
 ### Evaluating a trained model
 - The accuracy on the validation is logged every ```evaluate_every``` steps while training the model in ```Data/training_log.json```.
-- Use python train_evaluate.py --evaluate_every=1 --max_steps=1 --resume_model="Trained Model Path" to evaluate a checkpoint.
+- Use python train_evaluate.py --evaluate_every=1 --max_steps=1 --resume_model="Trained Model Path (Data/Models<vqa_-version>/model<epoch>.ckpt)" to evaluate a checkpoint.
 
 ## Generating Answers/Attention Distributions
 - Use ```python generate.py --question="<QUESTION ABOUT THE IMAGE>" --image_file="<IMAGE FILE PATH>" --model_path=<"PATH_TO_CHECKPOINT">```
@@ -56,10 +56,10 @@ Unzip the downloaded files and create the directory ```Data/CNNModels```. Downlo
 
 
 ## References
-[Show, Ask, Attend, and Answer: A Strong Baseline For Visual Question Answering][2]
-[Neural Machine Translation in Linear Time][3]
-[Stacked Attention Networks for Image Question Answering][4]
-And other papers/codes from https://github.com/JamesChuanggg/awesome-vqa[5]
+- [Show, Ask, Attend, and Answer: A Strong Baseline For Visual Question Answering][2]
+- [Neural Machine Translation in Linear Time][3]
+- [Stacked Attention Networks for Image Question Answering][4]
+- And other papers/codes from [https://github.com/JamesChuanggg/awesome-vqa][5]
 
 [1]:http://download.tensorflow.org/models/resnet_v2_152_2017_04_14.tar.gz
 [2]:https://arxiv.org/abs/1704.03162
