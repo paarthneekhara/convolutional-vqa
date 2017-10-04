@@ -24,7 +24,7 @@ Unzip the downloaded files and create the directory ```Data/CNNModels```. Downlo
 - Tokeinze the questions/answers using ```python data_loader.py --version=VQA_VERSION``` (1 or 2)
 
 ### Training the attention model
-- Train using ```python train_attention.py --version=VQA_VERSION```
+- Train using ```python train_evaluate.py --version=VQA_VERSION```
 - Following are the customizable model options
   - residual_channels : Number channels in the residual block of bytenet/state of the lstm. Default 512.
   - batch_size : Default 64.
@@ -36,7 +36,24 @@ Unzip the downloaded files and create the directory ```Data/CNNModels```. Downlo
   - resume_model : Resume training the model from a checkpoint file.
   - training_log_file : Log accuracy/steps in this filepath. Default 'Data/training_log.json' .
   - feature_layer : Which conv features to use. Default block4 of resnet.
-  - text_model : Text model to use : LSTM or bytenet.
+  - text_model : Text model to use : LSTM or bytenet. Default is bytenet
   
+### Evaluating a trained model
+- The accuracy on the validation is logged every ```evaluate_every``` steps while training the model in ```Data/training_log.json```.
+- Use python train_evaluate.py --evaluate_every=1 --max_steps=1 --resume_model="Trained Model Path" to evaluate a checkpoint.
+
+## Generating Answers/Attention Distributions
+- Use ```python generate.py --question="<QUESTION ABOUT THE IMAGE>" --image_file="<IMAGE FILE PATH>" --model_path=<"PATH_TO_CHECKPOINT">
+
+## Sample Results
+| Image        | Attention1           | Attention2 | Predicted Answer  |
+| ------------- |:-------------:|:-------------:| :-----:|
+| ![](http://i.imgur.com/j4FiEaS.jpg)      | ![](http://i.imgur.com/j4FiEaS.jpg) |![](http://i.imgur.com/j4FiEaS.jpg) | red, green, yellow|
+
+## References
+
+### Papers
+
+
 
 [1]:http://download.tensorflow.org/models/resnet_v2_152_2017_04_14.tar.gz
