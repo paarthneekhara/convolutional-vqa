@@ -1,3 +1,4 @@
+# OLD CODE. NOT BEING USED
 import tensorflow as tf
 import numpy as np
 import text_model_v2
