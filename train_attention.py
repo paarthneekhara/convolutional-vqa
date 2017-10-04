@@ -1,6 +1,6 @@
 import tensorflow as tf
 from Models import VQA_model_attention
-import data_loader_v2 as data_loader
+import data_loader
 import argparse
 import numpy as np
 from os.path import isfile, join
@@ -30,11 +30,9 @@ def main():
                        help='Expochs')
     parser.add_argument('--version', type=int, default=1,
                        help='VQA data version')
-    parser.add_argument('--debug', type=bool, default=False,
-                       help='Debug')
-    parser.add_argument('--sample_every', type=int, default=5,
+    parser.add_argument('--sample_every', type=int, default=200,
                        help='Debug every x iterations')
-    parser.add_argument('--evaluate_every', type=int, default=5,
+    parser.add_argument('--evaluate_every', type=int, default=6000,
                        help='Evaluate every x steps')
     parser.add_argument('--resume_model', type=str, default=None,
                        help='Trained Model Path')
@@ -44,8 +42,11 @@ def main():
                        help='CONV FEATURE LAYER, fc7, pool5 or block4')
     parser.add_argument('--cnn_model', type=str, default="resnet",
                        help='CNN model')
+    parser.add_argument('--text_model', type=str, default="bytenet",
+                       help='bytenet/lstm')
 
-    evaluation_steps = [6000, 12000, 18000, 25000, 30000, 35000, 50000]
+    # evaluation_steps = [6000, 12000, 18000, 25000, 30000, 35000, 50000]
+    # evaluation_steps = [400, 800, 1200, 1600, 2000, 2400, 2800]
     args = parser.parse_args()
     
     print "Reading QA DATA", args.version
@@ -71,10 +72,10 @@ def main():
         'filter_width' : 3,
         'img_dim' : 14,
         'img_channels' : 2048,
-        'dilations' : [ 1, 2, 4, 8, 16,
-                        1, 2, 4, 8, 16
+        'dilations' : [ 1, 2, 4, 8,
+                        1, 2, 4, 8, 
                        ],
-        'text_model' : 'bytenet',
+        'text_model' : args.text_model,
         'dropout_keep_prob' : 0.6,
         'max_question_length' : qa_data['max_question_length'],
         'num_answers' : 10
@@ -160,10 +161,10 @@ def main():
                 f = open('Data/samples/sample.json', 'wb')
                 f.write(json.dumps(sample_data))
                 f.close()
-
+                gc.collect()
                 shutil.make_archive('Data/samples', 'zip', 'Data/samples')
 
-            if step in evaluation_steps:
+            if step % args.evaluate_every == 0:
                 accuracy = evaluate_model(model, qa_data, args, 
                     model_options, sess, conv_features_val, image_id_map_val)
                 print "ACCURACY>> ", accuracy, step, epoch
@@ -177,7 +178,7 @@ def main():
                 f.close()
                 
                 save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
-                    
+                gc.collect()  
         
 def evaluate_model(model, qa_data, args, model_options, sess, conv_features, image_id_map):
     prediction_check = []

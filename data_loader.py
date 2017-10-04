@@ -220,12 +220,15 @@ def load_questions_answers(version = 2, data_dir = 'Data'):
         data = json.loads(f.read())
         return data
 
-def load_conv_features(split = 'train', model = "resnet", feature_layer = 'block4'):
+def load_conv_features(split = 'train', model = "resnet", feature_layer = 'block4', 
+    load_image_list = True):
     conv_file = "Data/conv_features_{}_{}/conv_features_{}.h5".format(split, model, feature_layer)
     # conv_file = "Data/conv_features_{}/conv_features_{}_bucket_{}.h5".format(split, feature_layer, bucket_no)
     hf = h5py.File( conv_file,'r')
     conv_features = hf['conv_features']
     print "Shape", conv_features.shape
+    if not load_image_list:
+        return conv_features
     # print conv_features[1,:,:,:]
     image_id_file = "Data/conv_features_{}_{}/image_id_list_{}.h5".format(split, model, feature_layer)
     # image_id_file = "Data/conv_features_{}/image_id_list_bucket_{}.h5".format(split, bucket_no)
