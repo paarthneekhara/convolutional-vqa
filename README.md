@@ -43,17 +43,26 @@ Unzip the downloaded files and create the directory ```Data/CNNModels```. Downlo
 - Use python train_evaluate.py --evaluate_every=1 --max_steps=1 --resume_model="Trained Model Path" to evaluate a checkpoint.
 
 ## Generating Answers/Attention Distributions
-- Use ```python generate.py --question="<QUESTION ABOUT THE IMAGE>" --image_file="<IMAGE FILE PATH>" --model_path=<"PATH_TO_CHECKPOINT">
+- Use ```python generate.py --question="<QUESTION ABOUT THE IMAGE>" --image_file="<IMAGE FILE PATH>" --model_path=<"PATH_TO_CHECKPOINT">```
 
 ## Sample Results
-| Image        | Attention1           | Attention2 | Predicted Answer  |
-| ------------- |:-------------:|:-------------:| :-----:|
-| ![](http://i.imgur.com/j4FiEaS.jpg)      | ![](http://i.imgur.com/j4FiEaS.jpg) |![](http://i.imgur.com/j4FiEaS.jpg) | red, green, yellow|
+| Image        | Question           | Attention1 |Attention2 | Predicted Answer  |
+| ------------- |:-------------:|:-------------:|:-------------:| :-----:|
+| ![](https://i.imgur.com/NRxINaq.jpg)|is she going to eat both pizza      | ![](https://i.imgur.com/rxy84Gv.jpg) |![](https://i.imgur.com/fAkQ0VM.jpg) | No |
+| ![](https://i.imgur.com/s2jPi0k.jpg)|What color is the traffic light      | ![](https://i.imgur.com/zArjRK0.jpg) |![](https://i.imgur.com/n0qbZst.jpg) | No |
+| ![](https://i.imgur.com/ItXZHfK.jpg)|is the persons hair short      | ![](https://i.imgur.com/Upi4VBW.jpg) |![](https://i.imgur.com/xGUurls.jpg) | Yes |
+| ![](https://i.imgur.com/LzYcgoS.jpg)|what musical instrument is beside the laptop      | ![](https://i.imgur.com/sjUUi9O.jpg) |![](https://i.imgur.com/QGHtVfk.jpg) | keyboard |
+| ![](https://i.imgur.com/wnVqAmd.jpg)|what color hat is the boy wearing      | ![](https://i.imgur.com/yRYlZRe.jpg) |![](https://i.imgur.com/AvtYPvt.jpg) | blue |
+
 
 ## References
-
-### Papers
-
-
+[Show, Ask, Attend, and Answer: A Strong Baseline For Visual Question Answering][2]
+[Neural Machine Translation in Linear Time][3]
+[Stacked Attention Networks for Image Question Answering][4]
+And other papers/codes from https://github.com/JamesChuanggg/awesome-vqa[5]
 
 [1]:http://download.tensorflow.org/models/resnet_v2_152_2017_04_14.tar.gz
+[2]:https://arxiv.org/abs/1704.03162
+[3]:https://arxiv.org/abs/1610.10099
+[4]:https://arxiv.org/abs/1511.02274
+[5]:https://github.com/JamesChuanggg/awesome-vqa
