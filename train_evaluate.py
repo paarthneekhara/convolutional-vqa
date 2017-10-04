@@ -28,6 +28,8 @@ def main():
                        help='Batch Size')
     parser.add_argument('--epochs', type=int, default=25,
                        help='Expochs')
+    parser.add_argument('--max_steps', type=int, default=50000,
+                       help='max steps, set 1 for evaluating the model')
     parser.add_argument('--version', type=int, default=1,
                        help='VQA data version')
     parser.add_argument('--sample_every', type=int, default=200,
@@ -65,6 +67,8 @@ def main():
     conv_features_val, image_id_list_val = data_loader.load_conv_features('val', args.cnn_model, args.feature_layer)
     image_id_map_val = {image_id_list_val[i] : i for i in xrange(len(image_id_list_val))}
 
+    conv_features = data_loader.load_conv_features('train', args.cnn_model, args.feature_layer, load_image_list = False)
+
     model_options = {
         'question_vocab_size' : len(qa_data['index_to_qw']),
         'residual_channels' : args.residual_channels,
@@ -99,6 +103,7 @@ def main():
     
     step = 0
     training_log = []
+
     for epoch in xrange(args.epochs):
         batch_no = 0
         while (batch_no*args.batch_size) < len(qa_data['training']):
@@ -161,8 +166,8 @@ def main():
                 f = open('Data/samples/sample.json', 'wb')
                 f.write(json.dumps(sample_data))
                 f.close()
-                gc.collect()
                 shutil.make_archive('Data/samples', 'zip', 'Data/samples')
+                gc.collect()
 
             if step % args.evaluate_every == 0:
                 accuracy = evaluate_model(model, qa_data, args, 
@@ -178,9 +183,19 @@ def main():
                 f.close()
                 
                 save_path = saver.save(sess, "Data/Models{}/model{}.ckpt".format(args.version, epoch))
-                gc.collect()  
+                gc.collect()
+                # to avoid h5py from slowing down.
+                conv_features = data_loader.load_conv_features('train', args.cnn_model, args.feature_layer, 
+                    load_image_list = False)
+
+            if step >= args.max_steps:
+                break
         
 def evaluate_model(model, qa_data, args, model_options, sess, conv_features, image_id_map):
+    # to avoid h5py from slowing down.
+    conv_features = data_loader.load_conv_features('val', args.cnn_model, args.feature_layer, 
+        load_image_list = False)
+    
     prediction_check = []
     ans_vocab_rev = qa_data['index_to_ans']  
     

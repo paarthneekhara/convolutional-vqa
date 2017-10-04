@@ -144,6 +144,7 @@ def process_data(data_split, qw_to_index, ans_to_index, options):
 
     return data_processed
 
+# borrowed MCB tokenize code
 def tokenize_mcb(s):
     t_str = s.lower()
     for i in [r'\?',r'\!',r'\'',r'\"',r'\$',r'\:',r'\@',r'\(',r'\)',r'\,',r'\.',r'\;']:
@@ -214,9 +215,15 @@ def get_top_answers(answers, top_n = 3000):
     return index_to_ans, ans_to_index
 
 
-def load_questions_answers(version = 2, data_dir = 'Data'):
+def load_questions_answers(version = 1, data_dir = 'Data'):
     qa_data_file = join(data_dir, 'qa_data_file{}.json'.format(version))
     with open(qa_data_file) as f:
+        data = json.loads(f.read())
+        return data
+
+def load_meta_data(version = 1, data_dir = 'Data'):
+    meta_data = join(data_dir, 'vocab_file{}.json'.format(version))
+    with open(meta_data) as f:
         data = json.loads(f.read())
         return data
 
