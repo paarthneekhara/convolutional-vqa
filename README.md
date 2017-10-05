@@ -11,13 +11,13 @@ This is an attention based model for VQA using a dilated convolutional neural ne
 ### Datasets and Paths
 - The model is can be trained either on VQA 1.0 or VQA 2.0. Download the dataset by running ```sh download.sh``` in ```Data``` directory.
 Unzip the downloaded files and create the directory ```Data/CNNModels```. Download the pretrained Resnet-152 from [here][1] to ```Data/CNNModels```.
-- Make 2 empty directories ```Data/Models1```, ```Data/Models2``` for saving the checkpoints during training for VQA 1.0 and 2.0 respectively.
+- Make 2 empty directories ```Data/Models1```, ```Data/Models2``` for saving the checkpoints while training VQA 1.0 and 2.0 respectively.
 
 ## Usage
 #### Extract the Image features
 - Extract the image features as per the following
   - DEFAULT - Resnet (14,14,2048) block4 features(attention model) - ```python extract_conv_features.py --feature_layer="block4"```
-  - VGG (7,7,512) pool5 features(attention model) -  ```python extract_conv_features.py --feature_layer="pool5"```
+  - VGG (14,14,512) pool5 features(attention model) -  ```python extract_conv_features.py --feature_layer="pool5"```
   - VGG fc7 features (4096,) - ```python extract_conv_features.py --feature_layer="fc7"```
 
 #### Preprocess Questions/Answers
@@ -40,10 +40,10 @@ Unzip the downloaded files and create the directory ```Data/CNNModels```. Downlo
   
 ### Evaluating a trained model
 - The accuracy on the validation is logged every ```evaluate_every``` steps while training the model in ```Data/training_log.json```.
-- Use python train_evaluate.py --evaluate_every=1 --max_steps=1 --resume_model="Trained Model Path (Data/Models<vqa_-version>/model<epoch>.ckpt)" to evaluate a checkpoint.
+- Use ```python train_evaluate.py --evaluate_every=1 --max_steps=1 --resume_model="Trained Model Path (Data/Models<vqa_-version>/model<epoch>.ckpt)"``` to evaluate a checkpoint.
 
 ## Generating Answers/Attention Distributions
-- Use ```python generate.py --question="<QUESTION ABOUT THE IMAGE>" --image_file="<IMAGE FILE PATH>" --model_path=<"PATH_TO_CHECKPOINT">```
+- Use ```python generate.py --question="<QUESTION ABOUT THE IMAGE>" --image_file="<IMAGE FILE PATH>" --model_path=<"PATH_TO_CHECKPOINT">``` to generate answer/attention distributions in ```Data/gen_samples```.
 
 ## Sample Results
 | Image        | Question           | Attention1 |Attention2 | Predicted Answer  |
