@@ -51,7 +51,7 @@ You may download the pretrained model from [here][6]. Save the files in ```Data/
 | Image        | Question           | Attention1 |Attention2 | Predicted Answer  |
 | ------------- |:-------------:|:-------------:|:-------------:| :-----:|
 | ![](https://i.imgur.com/NRxINaq.jpg)|is she going to eat both pizza      | ![](https://i.imgur.com/rxy84Gv.jpg) |![](https://i.imgur.com/fAkQ0VM.jpg) | No |
-| ![](https://i.imgur.com/s2jPi0k.jpg)|What color is the traffic light      | ![](https://i.imgur.com/zArjRK0.jpg) |![](https://i.imgur.com/n0qbZst.jpg) | No |
+| ![](https://i.imgur.com/s2jPi0k.jpg)|What color is the traffic light      | ![](https://i.imgur.com/zArjRK0.jpg) |![](https://i.imgur.com/n0qbZst.jpg) | green |
 | ![](https://i.imgur.com/ItXZHfK.jpg)|is the persons hair short      | ![](https://i.imgur.com/Upi4VBW.jpg) |![](https://i.imgur.com/xGUurls.jpg) | Yes |
 | ![](https://i.imgur.com/LzYcgoS.jpg)|what musical instrument is beside the laptop      | ![](https://i.imgur.com/sjUUi9O.jpg) |![](https://i.imgur.com/QGHtVfk.jpg) | keyboard |
 | ![](https://i.imgur.com/wnVqAmd.jpg)|what color hat is the boy wearing      | ![](https://i.imgur.com/yRYlZRe.jpg) |![](https://i.imgur.com/AvtYPvt.jpg) | blue |
