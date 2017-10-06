@@ -55,6 +55,9 @@ You may download the pretrained model from [here][6]. Save the files in ```Data/
 | ![](https://i.imgur.com/ItXZHfK.jpg)|is the persons hair short      | ![](https://i.imgur.com/Upi4VBW.jpg) |![](https://i.imgur.com/xGUurls.jpg) | Yes |
 | ![](https://i.imgur.com/LzYcgoS.jpg)|what musical instrument is beside the laptop      | ![](https://i.imgur.com/sjUUi9O.jpg) |![](https://i.imgur.com/QGHtVfk.jpg) | keyboard |
 | ![](https://i.imgur.com/wnVqAmd.jpg)|what color hat is the boy wearing      | ![](https://i.imgur.com/yRYlZRe.jpg) |![](https://i.imgur.com/AvtYPvt.jpg) | blue |
+| ![](https://i.imgur.com/LLDepgb.jpg)|what are the men doing      | ![](https://i.imgur.com/lr1sw1Y.jpg) |![](https://i.imgur.com/lr1sw1Y.jpg) | eating |
+| ![](https://i.imgur.com/ekjP8Yn.jpg)|what type of drink is in the glass      | ![](https://i.imgur.com/gdf5nDE.jpg) |![](https://i.imgur.com/XcjLfZ9.jpg) | orange juice |
+| ![](https://i.imgur.com/ZKudDyn.jpg)|is there a house      | ![](https://i.imgur.com/XTiYk7l.jpg) |![](https://i.imgur.com/NX3lV5W.jpg) | yes |
 
 
 ## References
