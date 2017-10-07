@@ -71,4 +71,4 @@ You may download the pretrained model from [here][6]. Save the files in ```Data/
 [3]:https://arxiv.org/abs/1610.10099
 [4]:https://arxiv.org/abs/1511.02274
 [5]:https://github.com/JamesChuanggg/awesome-vqa
-[6]:https://drive.google.com/a/eng.ucsd.edu/file/d/0BzIYiFQpwNAUTmJXY3JYckJhVmM/view?usp=sharing
+[6]:https://drive.google.com/file/d/0BzIYiFQpwNAUTmJXY3JYckJhVmM/view?usp=sharing
